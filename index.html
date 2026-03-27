@@ -1,0 +1,312 @@
+<!DOCTYPE html>
+<html lang="sk">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Claude Code Essentials — Kurz</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link href="https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=Syne:wght@400;600;800&display=swap" rel="stylesheet" />
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg: #0d0d0d;
+      --surface: #141414;
+      --border: #222;
+      --lime: #e8ff5a;
+      --mint: #5affb8;
+      --text: #e0e0e0;
+      --muted: #666;
+    }
+
+    body {
+      background: var(--bg);
+      color: var(--text);
+      font-family: 'Syne', sans-serif;
+      min-height: 100vh;
+    }
+
+    header {
+      border-bottom: 1px solid var(--border);
+      padding: 1.2rem 2rem;
+      display: flex;
+      align-items: center;
+      gap: 1rem;
+    }
+
+    .logo {
+      font-family: 'Space Mono', monospace;
+      font-size: 1rem;
+      color: var(--lime);
+      letter-spacing: -0.03em;
+    }
+
+    .logo span { color: var(--muted); }
+
+    .badge {
+      font-family: 'Space Mono', monospace;
+      font-size: 0.65rem;
+      background: #1a1a1a;
+      border: 1px solid var(--border);
+      color: var(--mint);
+      padding: 0.25rem 0.6rem;
+      border-radius: 4px;
+    }
+
+    .hero {
+      padding: 5rem 2rem 3rem;
+      max-width: 860px;
+      margin: 0 auto;
+      text-align: center;
+    }
+
+    .hero h1 {
+      font-size: clamp(2rem, 5vw, 3.2rem);
+      font-weight: 800;
+      line-height: 1.1;
+      margin-bottom: 1rem;
+    }
+
+    .hero h1 em {
+      font-style: normal;
+      color: var(--lime);
+    }
+
+    .hero p {
+      color: var(--muted);
+      font-size: 1.05rem;
+      max-width: 560px;
+      margin: 0 auto 2.5rem;
+      line-height: 1.6;
+    }
+
+    .stats {
+      display: flex;
+      justify-content: center;
+      gap: 2.5rem;
+      flex-wrap: wrap;
+      margin-bottom: 4rem;
+    }
+
+    .stat { text-align: center; }
+    .stat-num {
+      font-family: 'Space Mono', monospace;
+      font-size: 1.8rem;
+      color: var(--mint);
+      font-weight: 700;
+    }
+    .stat-label {
+      font-size: 0.78rem;
+      color: var(--muted);
+      margin-top: 0.2rem;
+    }
+
+    .lessons {
+      max-width: 860px;
+      margin: 0 auto;
+      padding: 0 2rem 5rem;
+    }
+
+    .section-title {
+      font-family: 'Space Mono', monospace;
+      font-size: 0.7rem;
+      color: var(--muted);
+      letter-spacing: 0.15em;
+      text-transform: uppercase;
+      margin-bottom: 1.5rem;
+    }
+
+    .lesson-card {
+      display: flex;
+      align-items: center;
+      gap: 1.5rem;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 1.4rem 1.6rem;
+      margin-bottom: 0.8rem;
+      text-decoration: none;
+      color: var(--text);
+      transition: border-color 0.2s, transform 0.15s;
+    }
+
+    .lesson-card:hover {
+      border-color: var(--lime);
+      transform: translateX(4px);
+    }
+
+    .lesson-card.locked {
+      opacity: 0.4;
+      pointer-events: none;
+      cursor: default;
+    }
+
+    .lesson-num {
+      font-family: 'Space Mono', monospace;
+      font-size: 0.75rem;
+      color: var(--muted);
+      min-width: 2.5rem;
+    }
+
+    .lesson-info { flex: 1; }
+
+    .lesson-title {
+      font-weight: 600;
+      font-size: 1rem;
+      margin-bottom: 0.25rem;
+    }
+
+    .lesson-desc {
+      font-size: 0.82rem;
+      color: var(--muted);
+      line-height: 1.4;
+    }
+
+    .lesson-status {
+      font-family: 'Space Mono', monospace;
+      font-size: 0.65rem;
+      padding: 0.25rem 0.6rem;
+      border-radius: 4px;
+      white-space: nowrap;
+    }
+
+    .status-available {
+      background: rgba(232, 255, 90, 0.1);
+      color: var(--lime);
+      border: 1px solid rgba(232, 255, 90, 0.3);
+    }
+
+    .status-soon {
+      background: #1a1a1a;
+      color: var(--muted);
+      border: 1px solid var(--border);
+    }
+
+    footer {
+      border-top: 1px solid var(--border);
+      padding: 1.5rem 2rem;
+      text-align: center;
+      font-family: 'Space Mono', monospace;
+      font-size: 0.7rem;
+      color: var(--muted);
+    }
+  </style>
+</head>
+<body>
+
+<header>
+  <div class="logo">claude_code<span>.essentials</span></div>
+  <div class="badge">SK kurz</div>
+</header>
+
+<section class="hero">
+  <h1>Nauč sa <em>Claude Code</em><br>od základov</h1>
+  <p>Praktický kurz v slovenčine — od inštalácie až po pokročilé multi-agentné workflows.</p>
+  <div class="stats">
+    <div class="stat">
+      <div class="stat-num">12+</div>
+      <div class="stat-label">lekcií</div>
+    </div>
+    <div class="stat">
+      <div class="stat-num">SK</div>
+      <div class="stat-label">jazyk</div>
+    </div>
+    <div class="stat">
+      <div class="stat-num">100%</div>
+      <div class="stat-label">zadarmo</div>
+    </div>
+  </div>
+</section>
+
+<section class="lessons">
+  <div class="section-title">// obsah kurzu</div>
+
+  <a href="lekcia-01-claude-code.html" class="lesson-card">
+    <span class="lesson-num">01</span>
+    <div class="lesson-info">
+      <div class="lesson-title">Čo je Claude Code?</div>
+      <div class="lesson-desc">Agentic coding, agent loop, miesto v ekosystéme AI nástrojov</div>
+    </div>
+    <span class="lesson-status status-available">dostupné</span>
+  </a>
+
+  <a href="lekcia-02-instalacia.html" class="lesson-card">
+    <span class="lesson-num">02</span>
+    <div class="lesson-info">
+      <div class="lesson-title">Inštalácia a prvé kroky</div>
+      <div class="lesson-desc">PowerShell, CMD, Linux, VS Code — inštalácia na každej platforme</div>
+    </div>
+    <span class="lesson-status status-available">dostupné</span>
+  </a>
+
+  <a href="lekcia-03-sessions.html" class="lesson-card">
+    <span class="lesson-num">03</span>
+    <div class="lesson-info">
+      <div class="lesson-title">Sessions a workflow manažment</div>
+      <div class="lesson-desc">Resume, fork, compact, rewind — správa kontextu medzi sedeniami</div>
+    </div>
+    <span class="lesson-status status-available">dostupné</span>
+  </a>
+
+  <a href="lekcia-04-nastavenia.html" class="lesson-card">
+    <span class="lesson-num">04</span>
+    <div class="lesson-info">
+      <div class="lesson-title">Nastavenia a oprávnenia</div>
+      <div class="lesson-desc">Permission rules, sandboxing, VIM mode, výber modelu</div>
+    </div>
+    <span class="lesson-status status-available">dostupné</span>
+  </a>
+
+  <a href="lekcia-05-claudemd.html" class="lesson-card">
+    <span class="lesson-num">05</span>
+    <div class="lesson-info">
+      <div class="lesson-title">CLAUDE.md — perzistentný kontext</div>
+      <div class="lesson-desc">Ako definovať dlhodobý kontext projektu a pravidlá pre agenta</div>
+    </div>
+    <span class="lesson-status status-available">dostupné</span>
+  </a>
+
+  <a href="lekcia-06-ide.html" class="lesson-card">
+    <span class="lesson-num">06</span>
+    <div class="lesson-info">
+      <div class="lesson-title">Integrácia s IDE</div>
+      <div class="lesson-desc">VS Code, JetBrains, Chrome Extension — práca v tvojom prostredí</div>
+    </div>
+    <span class="lesson-status status-available">dostupné</span>
+  </a>
+
+  <a href="lekcia-07-github-actions.html" class="lesson-card">
+    <span class="lesson-num">07</span>
+    <div class="lesson-info">
+      <div class="lesson-title">GitHub Actions a CI/CD</div>
+      <div class="lesson-desc">Automatizácia s Claude Code v pipeline</div>
+    </div>
+    <span class="lesson-status status-available">dostupné</span>
+  </a>
+
+  <a href="lekcia-08-mcp.html" class="lesson-card">
+    <span class="lesson-num">08</span>
+    <div class="lesson-info">
+      <div class="lesson-title">MCP — Model Context Protocol</div>
+      <div class="lesson-desc">Integrácia s externými nástrojmi: Playwright, databázy a ďalšie</div>
+    </div>
+    <span class="lesson-status status-available">dostupné</span>
+  </a>
+
+  <a href="lekcia-09-multi-agent.html" class="lesson-card">
+    <span class="lesson-num">09</span>
+    <div class="lesson-info">
+      <div class="lesson-title">Sub-agenti a Multi-Agent systémy</div>
+      <div class="lesson-desc">Orchestrácia viacerých agentov pre komplexné úlohy</div>
+    </div>
+    <span class="lesson-status status-available">dostupné</span>
+  </a>
+
+</section>
+
+<footer>
+  claude_code.essentials &nbsp;·&nbsp; postavené na VPS &nbsp;·&nbsp; 2026
+</footer>
+
+</body>
+</html>
