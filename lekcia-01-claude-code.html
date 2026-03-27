@@ -1,0 +1,1106 @@
+<!DOCTYPE html>
+<html lang="sk">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Lekcia 01 — Čo je Claude Code?</title>
+<link href="https://fonts.googleapis.com/css2?family=Space+Mono:ital,wght@0,400;0,700;1,400&family=Syne:wght@400;700;800&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #0a0c10;
+    --surface: #111318;
+    --surface2: #191c24;
+    --border: #1e2330;
+    --accent: #e8ff5a;
+    --accent2: #5affb8;
+    --accent3: #ff6b6b;
+    --text: #d4d8e8;
+    --text-dim: #5a6080;
+    --text-bright: #f0f4ff;
+    --glow: rgba(232,255,90,0.15);
+    --mono: 'Space Mono', monospace;
+    --sans: 'Syne', sans-serif;
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: var(--sans);
+    min-height: 100vh;
+    overflow-x: hidden;
+  }
+
+  /* GRID BACKGROUND */
+  body::before {
+    content: '';
+    position: fixed;
+    inset: 0;
+    background-image:
+      linear-gradient(rgba(232,255,90,0.03) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(232,255,90,0.03) 1px, transparent 1px);
+    background-size: 40px 40px;
+    pointer-events: none;
+    z-index: 0;
+  }
+
+  /* TOP BAR */
+  .topbar {
+    position: sticky;
+    top: 0;
+    z-index: 100;
+    background: rgba(10,12,16,0.92);
+    backdrop-filter: blur(12px);
+    border-bottom: 1px solid var(--border);
+    padding: 0 2rem;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    height: 56px;
+  }
+
+  .topbar-left {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+  }
+
+  .logo {
+    font-family: var(--mono);
+    font-size: 0.8rem;
+    color: var(--accent);
+    letter-spacing: 0.1em;
+  }
+
+  .sep { color: var(--text-dim); }
+
+  .lesson-badge {
+    font-family: var(--mono);
+    font-size: 0.7rem;
+    color: var(--text-dim);
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    padding: 3px 10px;
+    border-radius: 2px;
+  }
+
+  .progress-wrap {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+  }
+
+  .progress-label {
+    font-family: var(--mono);
+    font-size: 0.65rem;
+    color: var(--text-dim);
+  }
+
+  .progress-bar {
+    width: 120px;
+    height: 3px;
+    background: var(--border);
+    border-radius: 2px;
+    overflow: hidden;
+  }
+
+  .progress-fill {
+    height: 100%;
+    background: var(--accent);
+    width: 0%;
+    transition: width 0.4s ease;
+    box-shadow: 0 0 8px var(--accent);
+  }
+
+  /* MAIN LAYOUT */
+  .container {
+    position: relative;
+    z-index: 1;
+    max-width: 860px;
+    margin: 0 auto;
+    padding: 3rem 2rem 6rem;
+  }
+
+  /* HERO */
+  .hero {
+    margin-bottom: 4rem;
+    animation: fadeUp 0.7s ease both;
+  }
+
+  .eyebrow {
+    font-family: var(--mono);
+    font-size: 0.7rem;
+    color: var(--accent);
+    letter-spacing: 0.2em;
+    text-transform: uppercase;
+    margin-bottom: 1rem;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+  }
+
+  .eyebrow::before {
+    content: '>';
+    color: var(--accent);
+  }
+
+  h1 {
+    font-family: var(--sans);
+    font-size: clamp(2.2rem, 5vw, 3.5rem);
+    font-weight: 800;
+    color: var(--text-bright);
+    line-height: 1.1;
+    letter-spacing: -0.02em;
+    margin-bottom: 1.5rem;
+  }
+
+  h1 em {
+    color: var(--accent);
+    font-style: normal;
+    position: relative;
+  }
+
+  .hero-desc {
+    font-size: 1.05rem;
+    color: var(--text-dim);
+    line-height: 1.7;
+    max-width: 600px;
+    font-family: var(--mono);
+    font-size: 0.85rem;
+  }
+
+  /* OBJECTIVES BOX */
+  .objectives {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-left: 3px solid var(--accent);
+    padding: 1.5rem 2rem;
+    margin-bottom: 3rem;
+    animation: fadeUp 0.7s 0.15s ease both;
+  }
+
+  .objectives h3 {
+    font-family: var(--mono);
+    font-size: 0.7rem;
+    color: var(--accent);
+    letter-spacing: 0.15em;
+    text-transform: uppercase;
+    margin-bottom: 1rem;
+  }
+
+  .obj-list {
+    list-style: none;
+    display: flex;
+    flex-direction: column;
+    gap: 0.6rem;
+  }
+
+  .obj-list li {
+    font-size: 0.9rem;
+    color: var(--text);
+    display: flex;
+    align-items: flex-start;
+    gap: 0.75rem;
+    line-height: 1.5;
+  }
+
+  .obj-list li::before {
+    content: '✓';
+    color: var(--accent2);
+    font-family: var(--mono);
+    font-size: 0.8rem;
+    flex-shrink: 0;
+    margin-top: 2px;
+  }
+
+  /* SECTIONS */
+  .section {
+    margin-bottom: 3rem;
+    animation: fadeUp 0.7s ease both;
+  }
+
+  .section:nth-child(3) { animation-delay: 0.2s; }
+  .section:nth-child(4) { animation-delay: 0.3s; }
+  .section:nth-child(5) { animation-delay: 0.4s; }
+  .section:nth-child(6) { animation-delay: 0.5s; }
+
+  .section-header {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    margin-bottom: 1.5rem;
+  }
+
+  .section-num {
+    font-family: var(--mono);
+    font-size: 0.7rem;
+    color: var(--text-dim);
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    width: 32px;
+    height: 32px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+  }
+
+  h2 {
+    font-family: var(--sans);
+    font-size: 1.4rem;
+    font-weight: 800;
+    color: var(--text-bright);
+    letter-spacing: -0.01em;
+  }
+
+  p {
+    font-size: 0.95rem;
+    line-height: 1.8;
+    color: var(--text);
+    margin-bottom: 1rem;
+  }
+
+  p strong {
+    color: var(--text-bright);
+    font-weight: 700;
+  }
+
+  /* COMPARISON TABLE */
+  .compare-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 1px;
+    background: var(--border);
+    border: 1px solid var(--border);
+    margin: 1.5rem 0;
+    overflow: hidden;
+  }
+
+  .compare-col {
+    background: var(--surface);
+    padding: 1.5rem;
+  }
+
+  .compare-col.highlight {
+    background: var(--surface2);
+    border-left: 2px solid var(--accent);
+  }
+
+  .compare-label {
+    font-family: var(--mono);
+    font-size: 0.65rem;
+    letter-spacing: 0.15em;
+    text-transform: uppercase;
+    margin-bottom: 1rem;
+    padding-bottom: 0.75rem;
+    border-bottom: 1px solid var(--border);
+  }
+
+  .compare-col:first-child .compare-label { color: var(--accent3); }
+  .compare-col.highlight .compare-label { color: var(--accent2); }
+
+  .compare-items {
+    list-style: none;
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+  }
+
+  .compare-items li {
+    font-size: 0.85rem;
+    color: var(--text);
+    line-height: 1.5;
+    padding-left: 1rem;
+    position: relative;
+  }
+
+  .compare-items li::before {
+    content: '—';
+    position: absolute;
+    left: 0;
+    color: var(--text-dim);
+    font-family: var(--mono);
+  }
+
+  .compare-col.highlight .compare-items li::before { color: var(--accent2); }
+
+  /* AGENT LOOP DIAGRAM */
+  .loop-diagram {
+    margin: 1.5rem 0;
+    padding: 2rem;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    position: relative;
+    overflow: hidden;
+  }
+
+  .loop-diagram::before {
+    content: 'AGENT LOOP';
+    position: absolute;
+    top: 1rem;
+    right: 1rem;
+    font-family: var(--mono);
+    font-size: 0.6rem;
+    color: var(--text-dim);
+    letter-spacing: 0.15em;
+  }
+
+  .loop-steps {
+    display: flex;
+    align-items: center;
+    gap: 0;
+    flex-wrap: wrap;
+    justify-content: center;
+  }
+
+  .loop-step {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 0.5rem;
+    min-width: 110px;
+    padding: 1rem 0.5rem;
+  }
+
+  .loop-icon {
+    width: 48px;
+    height: 48px;
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.2rem;
+    position: relative;
+  }
+
+  .loop-step.active .loop-icon {
+    border-color: var(--accent);
+    box-shadow: 0 0 20px var(--glow);
+    animation: pulse 2s ease infinite;
+  }
+
+  .loop-step-label {
+    font-family: var(--mono);
+    font-size: 0.65rem;
+    color: var(--text-dim);
+    text-align: center;
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+  }
+
+  .loop-step.active .loop-step-label { color: var(--accent); }
+
+  .loop-arrow {
+    font-family: var(--mono);
+    color: var(--text-dim);
+    font-size: 1.2rem;
+    padding: 0 0.25rem;
+    margin-bottom: 1.5rem;
+  }
+
+  /* TERMINAL BLOCK */
+  .terminal {
+    background: #060810;
+    border: 1px solid var(--border);
+    border-top: 2px solid var(--accent);
+    padding: 0;
+    margin: 1.5rem 0;
+    font-family: var(--mono);
+    overflow: hidden;
+  }
+
+  .terminal-header {
+    background: var(--surface);
+    padding: 0.5rem 1rem;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    border-bottom: 1px solid var(--border);
+  }
+
+  .terminal-dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+  }
+
+  .terminal-dot.red { background: #ff5f57; }
+  .terminal-dot.yellow { background: #febc2e; }
+  .terminal-dot.green { background: #28c840; }
+
+  .terminal-title {
+    font-size: 0.65rem;
+    color: var(--text-dim);
+    margin-left: auto;
+    letter-spacing: 0.1em;
+  }
+
+  .terminal-body {
+    padding: 1.25rem 1.5rem;
+  }
+
+  .terminal-line {
+    display: flex;
+    gap: 0.75rem;
+    margin-bottom: 0.4rem;
+    line-height: 1.6;
+    font-size: 0.82rem;
+  }
+
+  .prompt { color: var(--accent); }
+  .cmd { color: var(--text-bright); }
+  .comment { color: var(--text-dim); }
+  .output { color: var(--accent2); padding-left: 1.5rem; }
+  .output.dim { color: var(--text-dim); }
+
+  /* CALLOUT */
+  .callout {
+    display: flex;
+    gap: 1rem;
+    padding: 1rem 1.25rem;
+    margin: 1.5rem 0;
+    border: 1px solid var(--border);
+    background: var(--surface);
+  }
+
+  .callout.warn {
+    border-left: 3px solid var(--accent3);
+  }
+
+  .callout.info {
+    border-left: 3px solid var(--accent2);
+  }
+
+  .callout.tip {
+    border-left: 3px solid var(--accent);
+  }
+
+  .callout-icon {
+    font-size: 1rem;
+    flex-shrink: 0;
+    margin-top: 1px;
+  }
+
+  .callout-text {
+    font-size: 0.85rem;
+    line-height: 1.6;
+    color: var(--text);
+  }
+
+  .callout-text strong {
+    display: block;
+    font-family: var(--mono);
+    font-size: 0.7rem;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    margin-bottom: 0.3rem;
+  }
+
+  .callout.warn .callout-text strong { color: var(--accent3); }
+  .callout.info .callout-text strong { color: var(--accent2); }
+  .callout.tip .callout-text strong { color: var(--accent); }
+
+  /* ECOSYSTEM MAP */
+  .eco-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+    gap: 1px;
+    background: var(--border);
+    border: 1px solid var(--border);
+    margin: 1.5rem 0;
+  }
+
+  .eco-item {
+    background: var(--surface);
+    padding: 1.25rem 1rem;
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+    transition: background 0.2s;
+    cursor: default;
+  }
+
+  .eco-item:hover { background: var(--surface2); }
+
+  .eco-item.featured {
+    background: var(--surface2);
+    border-bottom: 2px solid var(--accent);
+  }
+
+  .eco-icon { font-size: 1.4rem; }
+
+  .eco-name {
+    font-family: var(--mono);
+    font-size: 0.75rem;
+    color: var(--text-bright);
+    font-weight: 700;
+  }
+
+  .eco-item.featured .eco-name { color: var(--accent); }
+
+  .eco-desc {
+    font-size: 0.78rem;
+    color: var(--text-dim);
+    line-height: 1.4;
+  }
+
+  /* QUIZ */
+  .quiz-block {
+    border: 1px solid var(--border);
+    background: var(--surface);
+    padding: 1.75rem;
+    margin: 2rem 0;
+  }
+
+  .quiz-title {
+    font-family: var(--mono);
+    font-size: 0.7rem;
+    color: var(--accent);
+    letter-spacing: 0.15em;
+    text-transform: uppercase;
+    margin-bottom: 1.25rem;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+  }
+
+  .quiz-title::before {
+    content: '?';
+    width: 20px;
+    height: 20px;
+    background: var(--accent);
+    color: var(--bg);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: 700;
+    flex-shrink: 0;
+    font-size: 0.75rem;
+  }
+
+  .quiz-q {
+    font-size: 1rem;
+    color: var(--text-bright);
+    font-weight: 700;
+    margin-bottom: 1rem;
+    line-height: 1.5;
+  }
+
+  .quiz-options {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+  }
+
+  .quiz-option {
+    padding: 0.75rem 1rem;
+    border: 1px solid var(--border);
+    background: var(--surface2);
+    color: var(--text);
+    font-family: var(--mono);
+    font-size: 0.82rem;
+    cursor: pointer;
+    text-align: left;
+    transition: all 0.15s;
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+  }
+
+  .quiz-option:hover {
+    border-color: var(--accent);
+    color: var(--text-bright);
+  }
+
+  .quiz-option.correct {
+    border-color: var(--accent2);
+    background: rgba(90,255,184,0.08);
+    color: var(--accent2);
+  }
+
+  .quiz-option.wrong {
+    border-color: var(--accent3);
+    background: rgba(255,107,107,0.08);
+    color: var(--accent3);
+  }
+
+  .quiz-option-key {
+    width: 20px;
+    height: 20px;
+    background: var(--border);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 0.65rem;
+    flex-shrink: 0;
+  }
+
+  .quiz-feedback {
+    margin-top: 1rem;
+    padding: 0.75rem 1rem;
+    font-size: 0.85rem;
+    line-height: 1.5;
+    display: none;
+  }
+
+  .quiz-feedback.show { display: block; }
+  .quiz-feedback.ok { background: rgba(90,255,184,0.08); color: var(--accent2); border-left: 2px solid var(--accent2); }
+  .quiz-feedback.fail { background: rgba(255,107,107,0.08); color: var(--accent3); border-left: 2px solid var(--accent3); }
+
+  /* NEXT LESSON */
+  .next-lesson {
+    margin-top: 4rem;
+    padding: 2rem;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 1rem;
+    flex-wrap: wrap;
+  }
+
+  .next-info { flex: 1; }
+
+  .next-label {
+    font-family: var(--mono);
+    font-size: 0.65rem;
+    color: var(--text-dim);
+    letter-spacing: 0.15em;
+    text-transform: uppercase;
+    margin-bottom: 0.5rem;
+  }
+
+  .next-title {
+    font-family: var(--sans);
+    font-size: 1.1rem;
+    font-weight: 800;
+    color: var(--text-bright);
+  }
+
+  .next-btn {
+    background: var(--accent);
+    color: var(--bg);
+    border: none;
+    padding: 0.75rem 1.5rem;
+    font-family: var(--mono);
+    font-size: 0.8rem;
+    font-weight: 700;
+    letter-spacing: 0.05em;
+    cursor: pointer;
+    transition: all 0.15s;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+  }
+
+  .next-btn:hover {
+    background: var(--text-bright);
+    transform: translateX(3px);
+  }
+
+  /* ANIMATIONS */
+  @keyframes fadeUp {
+    from { opacity: 0; transform: translateY(20px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+
+  @keyframes pulse {
+    0%, 100% { box-shadow: 0 0 20px var(--glow); }
+    50% { box-shadow: 0 0 35px rgba(232,255,90,0.3); }
+  }
+
+  @keyframes blink {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0; }
+  }
+
+  .cursor {
+    display: inline-block;
+    width: 8px;
+    height: 14px;
+    background: var(--accent);
+    margin-left: 2px;
+    vertical-align: middle;
+    animation: blink 1s step-end infinite;
+  }
+
+  /* RESPONSIVE */
+  @media (max-width: 600px) {
+    .compare-grid { grid-template-columns: 1fr; }
+    .loop-steps { flex-direction: column; }
+    .loop-arrow { transform: rotate(90deg); }
+    h1 { font-size: 1.8rem; }
+    .next-lesson { flex-direction: column; }
+  }
+</style>
+</head>
+<body>
+
+<!-- TOP BAR -->
+<header class="topbar">
+  <div class="topbar-left">
+    <span class="logo">claude_code</span>
+    <span class="sep">/</span>
+    <span class="lesson-badge">LEKCIA 01</span>
+  </div>
+  <div class="progress-wrap">
+    <span class="progress-label">PROGRES</span>
+    <div class="progress-bar">
+      <div class="progress-fill" id="progressFill"></div>
+    </div>
+  </div>
+</header>
+
+<!-- CONTENT -->
+<main class="container">
+
+  <!-- HERO -->
+  <div class="hero">
+    <div class="eyebrow">Claude Code Essentials &nbsp;·&nbsp; Modul 1</div>
+    <h1>Čo je <em>Claude Code</em>?<span class="cursor"></span></h1>
+    <p class="hero-desc">
+      Vitaj v prvej lekcii. Dnes pochopíš, čo robí Claude Code výnimočným nástrojom, ako sa líši od bežných AI asistentov a ako funguje základný princíp agentného kódovania.
+    </p>
+  </div>
+
+  <!-- OBJECTIVES -->
+  <div class="objectives">
+    <h3>📋 Ciele lekcie</h3>
+    <ul class="obj-list">
+      <li>Pochopiť, čo je agentic coding a prečo je iný ako klasický AI copilot</li>
+      <li>Vedieť opísať Claude Code ako nástroj a jeho miesto v ekosystéme</li>
+      <li>Rozumieť konceptu agent loop a tool calls</li>
+      <li>Poznať hlavné rozdiely medzi Claude Code a konkurenciou</li>
+    </ul>
+  </div>
+
+  <!-- SECTION 1: Agentic Coding -->
+  <div class="section">
+    <div class="section-header">
+      <div class="section-num">01</div>
+      <h2>Agentic Coding — nová paradigma</h2>
+    </div>
+
+    <p>
+      Väčšina ľudí pozná AI nástroje ako <strong>GitHub Copilot</strong> — autocomplete na steroidoch. Napíšeš riadok kódu, AI dokončí zvyšok. To je <strong>copilot prístup</strong>: model reaktívne reaguje na každý tvoj vstup.
+    </p>
+
+    <p>
+      <strong>Agentic coding</strong> funguje inak. Agent <em>koná</em> — sám navrhne plán, spustí príkazy, skontroluje výsledky, opraví chyby a iteruje, kým úloha nie je hotová. Ty zadáš cieľ, nie každý krok.
+    </p>
+
+    <div class="compare-grid">
+      <div class="compare-col">
+        <div class="compare-label">🤖 Copilot prístup</div>
+        <ul class="compare-items">
+          <li>Reaktívny — čaká na tvoj vstup</li>
+          <li>Dopĺňa kód riadok po riadku</li>
+          <li>Ty riadiš každý krok</li>
+          <li>Kontext = otvorený súbor</li>
+          <li>Žiadne externé akcie</li>
+        </ul>
+      </div>
+      <div class="compare-col highlight">
+        <div class="compare-label">⚡ Agentic prístup</div>
+        <ul class="compare-items">
+          <li>Proaktívny — plánuje a koná</li>
+          <li>Zvládne celé featury naraz</li>
+          <li>Agent riadi kroky sám</li>
+          <li>Kontext = celý projekt</li>
+          <li>Spúšťa bash, číta súbory, volá API</li>
+        </ul>
+      </div>
+    </div>
+
+    <div class="callout tip">
+      <div class="callout-icon">💡</div>
+      <div class="callout-text">
+        <strong>Kľúčový insight</strong>
+        Agentic coding nenahradí programátora — zosilní ho. Deleguješ rutinné a opakujúce sa úlohy, sám sa sústreďuješ na architektúru a rozhodnutia.
+      </div>
+    </div>
+  </div>
+
+  <!-- SECTION 2: Agent Loop -->
+  <div class="section">
+    <div class="section-header">
+      <div class="section-num">02</div>
+      <h2>Agent Loop — ako to funguje?</h2>
+    </div>
+
+    <p>
+      Srdcom Claude Code je <strong>agent loop</strong> — nepretržitá slučka, v ktorej model plánuje, volá nástroje (tool calls), vyhodnocuje výsledky a pokračuje, kým nedosiahne cieľ.
+    </p>
+
+    <div class="loop-diagram">
+      <div class="loop-steps">
+        <div class="loop-step active">
+          <div class="loop-icon">💬</div>
+          <div class="loop-step-label">Tvoj prompt</div>
+        </div>
+        <div class="loop-arrow">→</div>
+        <div class="loop-step">
+          <div class="loop-icon">🧠</div>
+          <div class="loop-step-label">Model plánuje</div>
+        </div>
+        <div class="loop-arrow">→</div>
+        <div class="loop-step">
+          <div class="loop-icon">🔧</div>
+          <div class="loop-step-label">Tool call</div>
+        </div>
+        <div class="loop-arrow">→</div>
+        <div class="loop-step">
+          <div class="loop-icon">📊</div>
+          <div class="loop-step-label">Výsledok</div>
+        </div>
+        <div class="loop-arrow">→</div>
+        <div class="loop-step">
+          <div class="loop-icon">🔁</div>
+          <div class="loop-step-label">Ďalší krok</div>
+        </div>
+      </div>
+    </div>
+
+    <p>
+      Každý <strong>tool call</strong> je konkrétna akcia: čítanie súboru, spustenie príkazu v bash, vyhľadávanie v kóde, volanie externého API. Model dostane výsledok späť a rozhodne, čo ďalej.
+    </p>
+
+    <div class="terminal">
+      <div class="terminal-header">
+        <div class="terminal-dot red"></div>
+        <div class="terminal-dot yellow"></div>
+        <div class="terminal-dot green"></div>
+        <span class="terminal-title">PRÍKLAD AGENT LOOP</span>
+      </div>
+      <div class="terminal-body">
+        <div class="terminal-line">
+          <span class="prompt">you$</span>
+          <span class="cmd">Pridaj jednotkové testy pre funkciu parseDate()</span>
+        </div>
+        <div class="terminal-line" style="margin-top:0.75rem;">
+          <span class="output dim">▸ [tool_call] read_file("src/utils/date.ts")</span>
+        </div>
+        <div class="terminal-line">
+          <span class="output dim">▸ [tool_call] list_files("tests/")</span>
+        </div>
+        <div class="terminal-line">
+          <span class="output dim">▸ [tool_call] write_file("tests/date.test.ts", ...)</span>
+        </div>
+        <div class="terminal-line">
+          <span class="output dim">▸ [tool_call] bash("npm test -- date")</span>
+        </div>
+        <div class="terminal-line" style="margin-top:0.5rem;">
+          <span class="output">✓ 8 testov pridaných, všetky prejdené</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="callout info">
+      <div class="callout-icon">ℹ️</div>
+      <div class="callout-text">
+        <strong>Prečo je to dôležité?</strong>
+        Agent nepotrebuje tvoj súhlas pri každom kroku. Vie iterovať (napr. opraviť failing test) bez tvojho zásahu. Toto je zásadný rozdiel oproti chatbotom.
+      </div>
+    </div>
+  </div>
+
+  <!-- SECTION 3: Čo je Claude Code -->
+  <div class="section">
+    <div class="section-header">
+      <div class="section-num">03</div>
+      <h2>Claude Code — konkrétne</h2>
+    </div>
+
+    <p>
+      Claude Code je <strong>CLI nástroj</strong> (command-line interface) od Anthropic. Beží v tvojom termináli a má prístup k tvojmu projektu, file systému a bashu. Nie je to IDE plugin, nie je to webový chatbot — je to <strong>agentic harness</strong> postavený okolo modelu Claude.
+    </p>
+
+    <div class="terminal">
+      <div class="terminal-header">
+        <div class="terminal-dot red"></div>
+        <div class="terminal-dot yellow"></div>
+        <div class="terminal-dot green"></div>
+        <span class="terminal-title">ZÁKLADNÉ POUŽITIE</span>
+      </div>
+      <div class="terminal-body">
+        <div class="terminal-line">
+          <span class="comment"># Inštalácia</span>
+        </div>
+        <div class="terminal-line">
+          <span class="prompt">$</span>
+          <span class="cmd">npm install -g @anthropic-ai/claude-code</span>
+        </div>
+        <div class="terminal-line" style="margin-top:0.75rem;">
+          <span class="comment"># Spustenie v priečinku projektu</span>
+        </div>
+        <div class="terminal-line">
+          <span class="prompt">$</span>
+          <span class="cmd">claude</span>
+        </div>
+        <div class="terminal-line" style="margin-top:0.75rem;">
+          <span class="comment"># Jednorázová úloha (headless)</span>
+        </div>
+        <div class="terminal-line">
+          <span class="prompt">$</span>
+          <span class="cmd">claude -p "Zrefaktoruj všetky async funkcie v src/"</span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- SECTION 4: Ekosystém -->
+  <div class="section">
+    <div class="section-header">
+      <div class="section-num">04</div>
+      <h2>Kde Claude Code sedí v ekosystéme?</h2>
+    </div>
+
+    <p>
+      AI coding nástrojov je dnes veľa. Je dobré vedieť, kde Claude Code stojí a v čom sa líši.
+    </p>
+
+    <div class="eco-grid">
+      <div class="eco-item featured">
+        <div class="eco-icon">⚡</div>
+        <div class="eco-name">Claude Code</div>
+        <div class="eco-desc">CLI agent, full filesystem access, multi-agent ready</div>
+      </div>
+      <div class="eco-item">
+        <div class="eco-icon">🖱️</div>
+        <div class="eco-name">Cursor</div>
+        <div class="eco-desc">IDE fork s AI integrovaným do editora</div>
+      </div>
+      <div class="eco-item">
+        <div class="eco-icon">🤖</div>
+        <div class="eco-name">GitHub Copilot</div>
+        <div class="eco-desc">Autocomplete + chat, IDE plugin</div>
+      </div>
+      <div class="eco-item">
+        <div class="eco-icon">🌊</div>
+        <div class="eco-name">Windsurf</div>
+        <div class="eco-desc">Agentic IDE s Cascade enginom</div>
+      </div>
+      <div class="eco-item">
+        <div class="eco-icon">🔮</div>
+        <div class="eco-name">Devin</div>
+        <div class="eco-desc">Autonomný AI vývojár, cloud-based</div>
+      </div>
+    </div>
+
+    <div class="callout tip">
+      <div class="callout-icon">🎯</div>
+      <div class="callout-text">
+        <strong>Kľúčová výhoda Claude Code</strong>
+        Na rozdiel od IDE-first nástrojov, Claude Code je <em>terminál-first</em>. Funguje kdekoľvek — lokálne, na serveri, v CI/CD pipeline, v dev containeri. Maximálna flexibilita.
+      </div>
+    </div>
+  </div>
+
+  <!-- QUIZ -->
+  <div class="quiz-block" id="quiz">
+    <div class="quiz-title">Kvíz — Otestuj sa</div>
+    <div class="quiz-q">Čo je hlavný rozdiel medzi copilot prístupom a agentic prístupom?</div>
+    <div class="quiz-options">
+      <button class="quiz-option" onclick="checkAnswer(this, false)">
+        <span class="quiz-option-key">A</span>
+        Agentic nástroje sú rýchlejšie pri dopĺňaní kódu
+      </button>
+      <button class="quiz-option" onclick="checkAnswer(this, true)">
+        <span class="quiz-option-key">B</span>
+        Agent plánuje, koná a iteruje samostatne — nie len reaguje na každý vstup
+      </button>
+      <button class="quiz-option" onclick="checkAnswer(this, false)">
+        <span class="quiz-option-key">C</span>
+        Agentic prístup vyžaduje viac manuálneho zadávania príkazov
+      </button>
+      <button class="quiz-option" onclick="checkAnswer(this, false)">
+        <span class="quiz-option-key">D</span>
+        Copilot a agentic sú v podstate to isté, líšia sa len rozhraním
+      </button>
+    </div>
+    <div class="quiz-feedback" id="quizFeedback"></div>
+  </div>
+
+  <!-- SUMMARY -->
+  <div class="section">
+    <div class="section-header">
+      <div class="section-num">✓</div>
+      <h2>Zhrnutie lekcie</h2>
+    </div>
+    <div class="objectives">
+      <h3>🔑 Kľúčové pojmy</h3>
+      <ul class="obj-list">
+        <li><strong>Agentic coding</strong> — AI agent koná autonómne, nie len dopĺňa</li>
+        <li><strong>Agent loop</strong> — cyklus: prompt → plán → tool call → výsledok → ďalší krok</li>
+        <li><strong>Tool call</strong> — konkrétna akcia agenta (bash, read, write, search...)</li>
+        <li><strong>Claude Code</strong> — CLI harness od Anthropic, terminál-first, filesystem access</li>
+        <li><strong>Headless mode</strong> — spustenie bez interaktívneho rozhrania (<code>claude -p "..."</code>)</li>
+      </ul>
+    </div>
+  </div>
+
+  <!-- NEXT LESSON -->
+  <div class="next-lesson">
+    <div class="next-info">
+      <div class="next-label">Ďalšia lekcia</div>
+      <div class="next-title">02 — Inštalácia a prvé spustenie</div>
+    </div>
+    <button class="next-btn" onclick="alert('Ďalšia lekcia bude čoskoro!')">
+      Pokračovať →
+    </button>
+  </div>
+
+</main>
+
+<script>
+  // Progress tracking
+  const sections = document.querySelectorAll('.section, .quiz-block');
+  const progressFill = document.getElementById('progressFill');
+  let maxProgress = 0;
+
+  function updateProgress() {
+    const scrolled = window.scrollY + window.innerHeight;
+    const total = document.documentElement.scrollHeight;
+    const pct = Math.round((scrolled / total) * 100);
+    if (pct > maxProgress) {
+      maxProgress = pct;
+      progressFill.style.width = Math.min(pct, 100) + '%';
+    }
+  }
+
+  window.addEventListener('scroll', updateProgress);
+  updateProgress();
+
+  // Quiz
+  let answered = false;
+
+  function checkAnswer(btn, correct) {
+    if (answered) return;
+    answered = true;
+
+    const allBtns = document.querySelectorAll('.quiz-option');
+    allBtns.forEach(b => b.style.pointerEvents = 'none');
+
+    const feedback = document.getElementById('quizFeedback');
+
+    if (correct) {
+      btn.classList.add('correct');
+      feedback.className = 'quiz-feedback show ok';
+      feedback.innerHTML = '✓ Správne! Agent loop znamená, že model sám riadi sled akcií — nečaká na tvoj pokyn pri každom kroku. To je podstata agentic codings.';
+    } else {
+      btn.classList.add('wrong');
+      // highlight correct
+      allBtns.forEach(b => {
+        if (b.textContent.includes('plánuje, koná a iteruje')) b.classList.add('correct');
+      });
+      feedback.className = 'quiz-feedback show fail';
+      feedback.innerHTML = '✗ Takmer! Správna odpoveď je B. Agentic prístup sa od copilota líši autonómiou — agent sám plánuje kroky a iteruje bez tvojho zásahu.';
+    }
+  }
+</script>
+
+</body>
+</html>
