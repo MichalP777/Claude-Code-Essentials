@@ -1,0 +1,832 @@
+<!DOCTYPE html>
+<html lang="sk">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Lekcia 06 — Integrácia s IDE</title>
+<link href="https://fonts.googleapis.com/css2?family=Space+Mono:ital,wght@0,400;0,700;1,400&family=Syne:wght@400;700;800&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #0a0c10;
+    --surface: #111318;
+    --surface2: #191c24;
+    --border: #1e2330;
+    --accent: #e8ff5a;
+    --accent2: #5affb8;
+    --accent3: #ff6b6b;
+    --text: #d4d8e8;
+    --text-dim: #5a6080;
+    --text-bright: #f0f4ff;
+    --glow: rgba(232,255,90,0.15);
+    --mono: 'Space Mono', monospace;
+    --sans: 'Syne', sans-serif;
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: var(--sans);
+    min-height: 100vh;
+    overflow-x: hidden;
+  }
+
+  body::before {
+    content: '';
+    position: fixed;
+    inset: 0;
+    background-image:
+      linear-gradient(rgba(232,255,90,0.03) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(232,255,90,0.03) 1px, transparent 1px);
+    background-size: 40px 40px;
+    pointer-events: none;
+    z-index: 0;
+  }
+
+  .topbar {
+    position: sticky;
+    top: 0;
+    z-index: 100;
+    background: rgba(10,12,16,0.92);
+    backdrop-filter: blur(12px);
+    border-bottom: 1px solid var(--border);
+    padding: 0 2rem;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    height: 56px;
+  }
+
+  .topbar-left { display: flex; align-items: center; gap: 1rem; }
+
+  .logo {
+    font-family: var(--mono);
+    font-size: 0.8rem;
+    color: var(--accent);
+    letter-spacing: 0.1em;
+    text-decoration: none;
+  }
+
+  .sep { color: var(--text-dim); }
+
+  .lesson-badge {
+    font-family: var(--mono);
+    font-size: 0.7rem;
+    color: var(--text-dim);
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    padding: 3px 10px;
+    border-radius: 2px;
+  }
+
+  .progress-wrap { display: flex; align-items: center; gap: 0.75rem; }
+  .progress-label { font-family: var(--mono); font-size: 0.65rem; color: var(--text-dim); }
+  .progress-bar { width: 120px; height: 3px; background: var(--border); border-radius: 2px; overflow: hidden; }
+  .progress-fill { height: 100%; background: var(--accent); width: 0%; transition: width 0.4s ease; box-shadow: 0 0 8px var(--accent); }
+
+  .container {
+    position: relative;
+    z-index: 1;
+    max-width: 860px;
+    margin: 0 auto;
+    padding: 3rem 2rem 6rem;
+  }
+
+  .hero { margin-bottom: 4rem; animation: fadeUp 0.7s ease both; }
+
+  .eyebrow {
+    font-family: var(--mono);
+    font-size: 0.7rem;
+    color: var(--accent);
+    letter-spacing: 0.2em;
+    text-transform: uppercase;
+    margin-bottom: 1rem;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+  }
+  .eyebrow::before { content: '>'; color: var(--accent); }
+
+  h1 {
+    font-family: var(--sans);
+    font-size: clamp(2.2rem, 5vw, 3.5rem);
+    font-weight: 800;
+    color: var(--text-bright);
+    line-height: 1.1;
+    letter-spacing: -0.02em;
+    margin-bottom: 1.5rem;
+  }
+  h1 em { color: var(--accent); font-style: normal; }
+
+  .hero-desc {
+    color: var(--text-dim);
+    line-height: 1.7;
+    max-width: 600px;
+    font-family: var(--mono);
+    font-size: 0.85rem;
+  }
+
+  .objectives {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-left: 3px solid var(--accent);
+    padding: 1.5rem 2rem;
+    margin-bottom: 3rem;
+    animation: fadeUp 0.7s 0.15s ease both;
+  }
+  .objectives h3 {
+    font-family: var(--mono);
+    font-size: 0.7rem;
+    color: var(--accent);
+    letter-spacing: 0.15em;
+    text-transform: uppercase;
+    margin-bottom: 1rem;
+  }
+  .obj-list { list-style: none; display: flex; flex-direction: column; gap: 0.6rem; }
+  .obj-list li {
+    font-size: 0.9rem; color: var(--text);
+    display: flex; align-items: flex-start; gap: 0.75rem; line-height: 1.5;
+  }
+  .obj-list li::before {
+    content: '✓'; color: var(--accent2); font-family: var(--mono);
+    font-size: 0.8rem; flex-shrink: 0; margin-top: 2px;
+  }
+
+  .section { margin-bottom: 3rem; animation: fadeUp 0.7s ease both; }
+  .section:nth-child(3) { animation-delay: 0.2s; }
+  .section:nth-child(4) { animation-delay: 0.3s; }
+  .section:nth-child(5) { animation-delay: 0.4s; }
+  .section:nth-child(6) { animation-delay: 0.5s; }
+  .section:nth-child(7) { animation-delay: 0.6s; }
+
+  .section-header { display: flex; align-items: center; gap: 1rem; margin-bottom: 1.5rem; }
+  .section-num {
+    font-family: var(--mono); font-size: 0.7rem; color: var(--text-dim);
+    background: var(--surface2); border: 1px solid var(--border);
+    width: 32px; height: 32px; display: flex; align-items: center;
+    justify-content: center; flex-shrink: 0;
+  }
+  h2 { font-family: var(--sans); font-size: 1.4rem; font-weight: 800; color: var(--text-bright); letter-spacing: -0.01em; }
+
+  p { font-size: 0.95rem; line-height: 1.8; color: var(--text); margin-bottom: 1rem; }
+  p strong { color: var(--text-bright); font-weight: 700; }
+
+  /* TERMINAL */
+  .terminal {
+    background: #060810;
+    border: 1px solid var(--border);
+    border-top: 2px solid var(--accent);
+    margin: 1.5rem 0;
+    font-family: var(--mono);
+    overflow: hidden;
+  }
+  .terminal-header {
+    background: var(--surface); padding: 0.5rem 1rem;
+    display: flex; align-items: center; gap: 0.5rem;
+    border-bottom: 1px solid var(--border);
+  }
+  .terminal-dot { width: 8px; height: 8px; border-radius: 50%; }
+  .terminal-dot.red { background: #ff5f57; }
+  .terminal-dot.yellow { background: #febc2e; }
+  .terminal-dot.green { background: #28c840; }
+  .terminal-title { font-size: 0.65rem; color: var(--text-dim); margin-left: auto; letter-spacing: 0.1em; }
+  .terminal-body { padding: 1.25rem 1.5rem; }
+  .terminal-line { display: flex; gap: 0.75rem; margin-bottom: 0.4rem; line-height: 1.6; font-size: 0.82rem; }
+  .prompt { color: var(--accent); flex-shrink: 0; }
+  .cmd { color: var(--text-bright); }
+  .out { color: var(--text-dim); }
+  .out-success { color: var(--accent2); }
+  .out-warn { color: #febc2e; }
+  .comment { color: var(--text-dim); font-style: italic; }
+
+  /* CALLOUT */
+  .callout {
+    padding: 1rem 1.25rem; margin: 1.5rem 0;
+    border-left: 3px solid; line-height: 1.6; font-family: var(--mono);
+  }
+  .callout-tip { background: rgba(90,255,184,0.06); border-color: var(--accent2); color: var(--accent2); }
+  .callout-warn { background: rgba(254,188,46,0.06); border-color: #febc2e; color: #febc2e; }
+  .callout-info { background: rgba(232,255,90,0.06); border-color: var(--accent); color: var(--accent); }
+  .callout-label { font-size: 0.65rem; letter-spacing: 0.15em; text-transform: uppercase; margin-bottom: 0.4rem; opacity: 0.8; }
+  .callout p { font-family: var(--mono); font-size: 0.82rem; margin: 0; color: inherit; }
+
+  /* IDE TABS */
+  .ide-tabs {
+    display: flex;
+    border: 1px solid var(--border);
+    overflow: hidden;
+    margin-bottom: 0;
+  }
+  .ide-tab {
+    font-family: var(--mono);
+    font-size: 0.72rem;
+    padding: 0.6rem 1.4rem;
+    cursor: pointer;
+    border: none;
+    background: var(--surface);
+    color: var(--text-dim);
+    letter-spacing: 0.05em;
+    border-right: 1px solid var(--border);
+    transition: background 0.2s, color 0.2s;
+    flex: 1;
+  }
+  .ide-tab:last-child { border-right: none; }
+  .ide-tab:hover { background: var(--surface2); color: var(--text); }
+  .ide-tab.active { background: var(--surface2); color: var(--accent); border-bottom: 2px solid var(--accent); }
+  .ide-panel { display: none; }
+  .ide-panel.active { display: block; }
+
+  /* STEPS */
+  .steps { display: flex; flex-direction: column; gap: 0; margin: 1.5rem 0; }
+  .step { display: flex; gap: 1.5rem; position: relative; }
+  .step::before {
+    content: ''; position: absolute;
+    left: 15px; top: 40px; bottom: 0;
+    width: 1px; background: var(--border);
+  }
+  .step:last-child::before { display: none; }
+  .step-num {
+    font-family: var(--mono); font-size: 0.7rem;
+    width: 32px; height: 32px;
+    background: var(--surface2); border: 1px solid var(--border);
+    display: flex; align-items: center; justify-content: center;
+    flex-shrink: 0; color: var(--accent); margin-top: 0.1rem;
+  }
+  .step-content { flex: 1; padding-bottom: 1.5rem; }
+  .step-title { font-weight: 700; color: var(--text-bright); font-size: 0.95rem; margin-bottom: 0.4rem; }
+  .step-desc { font-size: 0.85rem; color: var(--text-dim); line-height: 1.6; }
+  .step-desc code { color: var(--accent); font-family: var(--mono); }
+
+  /* FEATURE GRID */
+  .feature-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+    gap: 1px;
+    background: var(--border);
+    border: 1px solid var(--border);
+    margin: 1.5rem 0;
+    overflow: hidden;
+  }
+  .feature-card { background: var(--surface); padding: 1.25rem 1.5rem; }
+  .feature-card:hover { background: var(--surface2); }
+  .feature-icon { font-size: 1.2rem; margin-bottom: 0.5rem; }
+  .feature-name { font-family: var(--mono); font-size: 0.78rem; color: var(--accent); margin-bottom: 0.35rem; }
+  .feature-desc { font-size: 0.8rem; color: var(--text-dim); line-height: 1.5; }
+
+  /* SHORTCUT TABLE */
+  .shortcut-table {
+    width: 100%;
+    border-collapse: collapse;
+    margin: 1.5rem 0;
+    font-family: var(--mono);
+    font-size: 0.8rem;
+  }
+  .shortcut-table th {
+    text-align: left; padding: 0.6rem 1rem;
+    font-size: 0.65rem; letter-spacing: 0.15em;
+    text-transform: uppercase; color: var(--text-dim);
+    border-bottom: 1px solid var(--border);
+  }
+  .shortcut-table td { padding: 0.7rem 1rem; border-bottom: 1px solid var(--border); vertical-align: top; }
+  .shortcut-table tr:last-child td { border-bottom: none; }
+  .shortcut-table tr:hover td { background: var(--surface2); }
+  .kbd {
+    display: inline-block;
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    color: var(--accent);
+    padding: 0.15rem 0.5rem;
+    border-radius: 3px;
+    font-size: 0.75rem;
+    white-space: nowrap;
+  }
+  .shortcut-desc { color: var(--text-dim); }
+
+  /* DIFF VIEW */
+  .diff-view {
+    background: #060810;
+    border: 1px solid var(--border);
+    border-top: 2px solid var(--accent2);
+    margin: 1.5rem 0;
+    font-family: var(--mono);
+    font-size: 0.8rem;
+    overflow: hidden;
+  }
+  .diff-header {
+    background: var(--surface);
+    padding: 0.5rem 1rem;
+    font-size: 0.65rem;
+    color: var(--accent2);
+    letter-spacing: 0.1em;
+    border-bottom: 1px solid var(--border);
+    display: flex;
+    gap: 1rem;
+  }
+  .diff-body { padding: 1rem 1.5rem; line-height: 1.8; }
+  .diff-add { color: var(--accent2); }
+  .diff-del { color: var(--accent3); }
+  .diff-ctx { color: var(--text-dim); }
+  .diff-line { display: flex; gap: 0.75rem; }
+  .diff-sign { min-width: 1rem; }
+
+  /* QUIZ */
+  .quiz { background: var(--surface); border: 1px solid var(--border); padding: 2rem; margin-top: 2rem; }
+  .quiz-header { font-family: var(--mono); font-size: 0.65rem; color: var(--accent); letter-spacing: 0.2em; text-transform: uppercase; margin-bottom: 0.5rem; }
+  .quiz h3 { font-size: 1rem; color: var(--text-bright); font-weight: 700; margin-bottom: 1.5rem; line-height: 1.5; }
+  .quiz-options { display: flex; flex-direction: column; gap: 0.6rem; margin-bottom: 1rem; }
+  .quiz-option {
+    display: flex; align-items: flex-start; gap: 0.75rem;
+    padding: 0.9rem 1rem; background: var(--surface2);
+    border: 1px solid var(--border); cursor: pointer;
+    transition: border-color 0.2s; font-size: 0.88rem; line-height: 1.5;
+  }
+  .quiz-option:hover { border-color: var(--accent); }
+  .quiz-option.correct { border-color: var(--accent2); background: rgba(90,255,184,0.06); color: var(--accent2); }
+  .quiz-option.wrong { border-color: var(--accent3); background: rgba(255,107,107,0.06); color: var(--accent3); }
+  .quiz-letter { font-family: var(--mono); font-size: 0.7rem; color: var(--text-dim); flex-shrink: 0; margin-top: 2px; }
+  .quiz-feedback { font-family: var(--mono); font-size: 0.8rem; padding: 0.75rem 1rem; display: none; line-height: 1.5; }
+  .quiz-feedback.show { display: block; }
+  .quiz-feedback.ok { color: var(--accent2); background: rgba(90,255,184,0.06); border-left: 3px solid var(--accent2); }
+  .quiz-feedback.err { color: var(--accent3); background: rgba(255,107,107,0.06); border-left: 3px solid var(--accent3); }
+
+  /* NAV */
+  .lesson-nav {
+    display: flex; justify-content: space-between; align-items: center;
+    margin-top: 4rem; padding-top: 2rem; border-top: 1px solid var(--border); gap: 1rem;
+  }
+  .nav-btn {
+    font-family: var(--mono); font-size: 0.75rem; padding: 0.7rem 1.4rem;
+    border: 1px solid var(--border); background: var(--surface);
+    color: var(--text); text-decoration: none; letter-spacing: 0.05em;
+    transition: border-color 0.2s, color 0.2s;
+  }
+  .nav-btn:hover { border-color: var(--accent); color: var(--accent); }
+  .nav-btn.primary { border-color: var(--accent); color: var(--accent); background: rgba(232,255,90,0.06); }
+  .nav-btn.primary:hover { background: rgba(232,255,90,0.12); }
+
+  @keyframes fadeUp {
+    from { opacity: 0; transform: translateY(16px); }
+    to   { opacity: 1; transform: translateY(0); }
+  }
+</style>
+</head>
+<body>
+
+<nav class="topbar">
+  <div class="topbar-left">
+    <a href="index.html" class="logo">claude_code</a>
+    <span class="sep">/</span>
+    <span class="lesson-badge">lekcia 06</span>
+  </div>
+  <div class="progress-wrap">
+    <span class="progress-label" id="prog-label">0%</span>
+    <div class="progress-bar"><div class="progress-fill" id="prog-fill"></div></div>
+  </div>
+</nav>
+
+<div class="container">
+
+  <!-- HERO -->
+  <div class="hero">
+    <div class="eyebrow">Claude Code Essentials &nbsp;·&nbsp; Lekcia 06</div>
+    <h1>Integrácia<br>s <em>IDE</em></h1>
+    <p class="hero-desc">
+      Claude Code nie je len terminál. Funguje priamo vo VS Code, JetBrains
+      a Chrome — bez prepínania okien, bez straty kontextu.
+    </p>
+  </div>
+
+  <!-- OBJECTIVES -->
+  <div class="objectives">
+    <h3>// čo sa naučíš</h3>
+    <ul class="obj-list">
+      <li>Nainštalovať a nastaviť Claude Code extension vo VS Code</li>
+      <li>Použiť inline diff — schválenie alebo zamietnutie zmien priamo v editore</li>
+      <li>Nastaviť plugin pre JetBrains IDE (IntelliJ, PyCharm, WebStorm…)</li>
+      <li>Pochopiť, čo prináša Chrome Extension a kedy ju použiť</li>
+      <li>Ovládať klávesové skratky pre rýchlu prácu s agentom</li>
+    </ul>
+  </div>
+
+  <!-- SECTION 1: Prehľad surfaces -->
+  <div class="section">
+    <div class="section-header">
+      <div class="section-num">01</div>
+      <h2>Kde všade beží Claude Code</h2>
+    </div>
+
+    <p>
+      Claude Code má viacero <strong>surfaces</strong> — rozhraní, cez ktoré s ním môžeš pracovať.
+      Každé má svoje silné stránky a typické použitie.
+    </p>
+
+    <div class="feature-grid">
+      <div class="feature-card">
+        <div class="feature-icon">⌨️</div>
+        <div class="feature-name">Terminál (CLI)</div>
+        <div class="feature-desc">Základné rozhranie. Plná kontrola, headless mód, CI/CD integrácia.</div>
+      </div>
+      <div class="feature-card">
+        <div class="feature-icon">🖥️</div>
+        <div class="feature-name">Desktop App</div>
+        <div class="feature-desc">Natívna aplikácia pre macOS a Windows. GUI pre sessions a nastavenia.</div>
+      </div>
+      <div class="feature-card">
+        <div class="feature-icon">🌐</div>
+        <div class="feature-name">Web (claude.ai)</div>
+        <div class="feature-desc">Prístup odkiaľkoľvek bez inštalácie. Vhodné pre rýchle úlohy.</div>
+      </div>
+      <div class="feature-card">
+        <div class="feature-icon">💙</div>
+        <div class="feature-name">VS Code Extension</div>
+        <div class="feature-desc">Inline diff, agent panel v editore, priamy prístup k súborom.</div>
+      </div>
+      <div class="feature-card">
+        <div class="feature-icon">🧠</div>
+        <div class="feature-name">JetBrains Plugin</div>
+        <div class="feature-desc">Pre IntelliJ, PyCharm, WebStorm a ďalšie. Rovnaké funkcie ako VS Code.</div>
+      </div>
+      <div class="feature-card">
+        <div class="feature-icon">🔵</div>
+        <div class="feature-name">Chrome Extension</div>
+        <div class="feature-desc">Prístup k Claude Code z prehliadača. Toolbar na webových stránkach.</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- SECTION 2: VS Code -->
+  <div class="section">
+    <div class="section-header">
+      <div class="section-num">02</div>
+      <h2>VS Code Extension</h2>
+    </div>
+
+    <p>
+      VS Code extension je najpopulárnejšia integrácia. Pridáva Claude Code
+      <strong>panel priamo do editora</strong> a umožňuje schvaľovať zmeny kódu
+      inline — bez prepínania do terminálu.
+    </p>
+
+    <div class="ide-tabs">
+      <button class="ide-tab active" onclick="switchIDE('install')">Inštalácia</button>
+      <button class="ide-tab" onclick="switchIDE('diff')">Inline diff</button>
+      <button class="ide-tab" onclick="switchIDE('shortcuts')">Skratky</button>
+    </div>
+
+    <!-- INSTALL -->
+    <div class="ide-panel active" id="ide-install">
+      <div class="steps">
+        <div class="step">
+          <div class="step-num">1</div>
+          <div class="step-content">
+            <div class="step-title">Otvor VS Code Extensions</div>
+            <div class="step-desc">Klávesová skratka: <code>Ctrl+Shift+X</code> (Windows/Linux) alebo <code>Cmd+Shift+X</code> (macOS).</div>
+          </div>
+        </div>
+        <div class="step">
+          <div class="step-num">2</div>
+          <div class="step-content">
+            <div class="step-title">Vyhľadaj "Claude Code"</div>
+            <div class="step-desc">Hľadaj extension od Anthropic — overená modrá fajka. Klikni <strong>Install</strong>.</div>
+          </div>
+        </div>
+        <div class="step">
+          <div class="step-num">3</div>
+          <div class="step-content">
+            <div class="step-title">Prihlás sa</div>
+            <div class="step-desc">Extension použije existujúci token z CLI. Ak nie si prihlásený, spusti <code>claude login</code> v termináli.</div>
+          </div>
+        </div>
+        <div class="step">
+          <div class="step-num">4</div>
+          <div class="step-content">
+            <div class="step-title">Otvor Claude panel</div>
+            <div class="step-desc">Klikni na ikonu Claude v activity bare (ľavý panel) alebo použi skratku <code>Ctrl+Shift+C</code>.</div>
+          </div>
+        </div>
+      </div>
+      <div class="callout callout-tip">
+        <div class="callout-label">// alternatíva — príkazový riadok</div>
+        <p>Ak máš nainštalovaný VS Code CLI: <code style="color:var(--accent)">code --install-extension anthropic.claude-code</code></p>
+      </div>
+    </div>
+
+    <!-- INLINE DIFF -->
+    <div class="ide-panel" id="ide-diff">
+      <p style="margin-top:1rem">
+        Inline diff je najcennejšia funkcia VS Code integrácie. Keď agent navrhne zmenu kódu,
+        zobrazí sa <strong>priamo v editore</strong> — zelené riadky (pridané) a červené (odobrané).
+        Zmenu môžeš schváliť alebo zamietnuť jedným kliknutím.
+      </p>
+
+      <div class="diff-view">
+        <div class="diff-header">
+          <span>src/auth/middleware.ts</span>
+          <span style="color:var(--text-dim)">navrhovaná zmena agenta</span>
+        </div>
+        <div class="diff-body">
+          <div class="diff-line"><span class="diff-sign diff-ctx">&nbsp;</span><span class="diff-ctx">export function authMiddleware(req, res, next) {</span></div>
+          <div class="diff-line"><span class="diff-sign diff-del">-</span><span class="diff-del">&nbsp;&nbsp;const token = req.headers.token;</span></div>
+          <div class="diff-line"><span class="diff-sign diff-add">+</span><span class="diff-add">&nbsp;&nbsp;const token = req.headers.authorization?.split(' ')[1];</span></div>
+          <div class="diff-line"><span class="diff-sign diff-ctx">&nbsp;</span><span class="diff-ctx">&nbsp;&nbsp;if (!token) {</span></div>
+          <div class="diff-line"><span class="diff-sign diff-del">-</span><span class="diff-del">&nbsp;&nbsp;&nbsp;&nbsp;return res.status(401).json({ error: 'No token' });</span></div>
+          <div class="diff-line"><span class="diff-sign diff-add">+</span><span class="diff-add">&nbsp;&nbsp;&nbsp;&nbsp;return res.status(401).json({ error: 'Unauthorized' });</span></div>
+          <div class="diff-line"><span class="diff-sign diff-ctx">&nbsp;</span><span class="diff-ctx">&nbsp;&nbsp;}</span></div>
+          <div class="diff-line"><span class="diff-sign diff-ctx">&nbsp;</span><span class="diff-ctx">}</span></div>
+        </div>
+      </div>
+
+      <div class="terminal">
+        <div class="terminal-header">
+          <div class="terminal-dot red"></div>
+          <div class="terminal-dot yellow"></div>
+          <div class="terminal-dot green"></div>
+          <span class="terminal-title">workflow s inline diff</span>
+        </div>
+        <div class="terminal-body">
+          <div class="terminal-line"><span class="comment"># 1. Zadaj úlohu v Claude paneli</span></div>
+          <div class="terminal-line"><span class="prompt">&gt;</span><span class="cmd"> Oprav auth middleware — token by mal byť v Bearer hlavičke</span></div>
+          <div class="terminal-line" style="margin-top:0.5rem"><span class="out">Agent analyzuje kód...</span></div>
+          <div class="terminal-line"><span class="out-success">✓ Zmeny navrhnuté — skontroluj diff v editore</span></div>
+          <div class="terminal-line" style="margin-top:0.5rem"><span class="comment"># 2. V editore sa zobrazí diff — schváliš alebo zamietneš</span></div>
+          <div class="terminal-line"><span class="out">[ Schváliť všetky ]  [ Schváliť súbor po súbore ]  [ Zamietnuť ]</span></div>
+        </div>
+      </div>
+
+      <div class="callout callout-info">
+        <div class="callout-label">// tip — čiastočné schválenie</div>
+        <p>Môžeš schváliť zmeny súbor po súbore — nie všetky naraz. Ak s jednou zmenou nesúhlasíš, zamietni ju a požiadaj agenta o úpravu len pre daný súbor.</p>
+      </div>
+    </div>
+
+    <!-- SHORTCUTS -->
+    <div class="ide-panel" id="ide-shortcuts">
+      <table class="shortcut-table" style="margin-top:1rem">
+        <thead>
+          <tr>
+            <th>Akcia</th>
+            <th>Windows / Linux</th>
+            <th>macOS</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td class="shortcut-desc">Otvoriť Claude panel</td>
+            <td><span class="kbd">Ctrl+Shift+C</span></td>
+            <td><span class="kbd">Cmd+Shift+C</span></td>
+          </tr>
+          <tr>
+            <td class="shortcut-desc">Nová správa agentovi</td>
+            <td><span class="kbd">Ctrl+I</span></td>
+            <td><span class="kbd">Cmd+I</span></td>
+          </tr>
+          <tr>
+            <td class="shortcut-desc">Schváliť diff</td>
+            <td><span class="kbd">Ctrl+Enter</span></td>
+            <td><span class="kbd">Cmd+Enter</span></td>
+          </tr>
+          <tr>
+            <td class="shortcut-desc">Zamietnuť diff</td>
+            <td><span class="kbd">Ctrl+Backspace</span></td>
+            <td><span class="kbd">Cmd+Backspace</span></td>
+          </tr>
+          <tr>
+            <td class="shortcut-desc">Zastaviť agenta</td>
+            <td><span class="kbd">Esc</span></td>
+            <td><span class="kbd">Esc</span></td>
+          </tr>
+          <tr>
+            <td class="shortcut-desc">Pridať aktuálny súbor do kontextu</td>
+            <td><span class="kbd">Ctrl+Shift+A</span></td>
+            <td><span class="kbd">Cmd+Shift+A</span></td>
+          </tr>
+        </tbody>
+      </table>
+      <div class="callout callout-tip">
+        <div class="callout-label">// vlastné skratky</div>
+        <p>Klávesové skratky môžeš upraviť v <code style="color:var(--accent)">~/.claude/keybindings.json</code>. Spusti <code>/keybindings-help</code> pre asistenta pri konfigurácii.</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- SECTION 3: JetBrains -->
+  <div class="section">
+    <div class="section-header">
+      <div class="section-num">03</div>
+      <h2>JetBrains Plugin</h2>
+    </div>
+
+    <p>
+      Pre používateľov IntelliJ IDEA, PyCharm, WebStorm, GoLand a ďalších
+      JetBrains IDE existuje oficiálny plugin s rovnakými funkciami ako VS Code extension.
+    </p>
+
+    <div class="steps">
+      <div class="step">
+        <div class="step-num">1</div>
+        <div class="step-content">
+          <div class="step-title">Otvor Plugin Marketplace</div>
+          <div class="step-desc">Menu: <code>File → Settings → Plugins</code> (Windows/Linux) alebo <code>IntelliJ IDEA → Preferences → Plugins</code> (macOS).</div>
+        </div>
+      </div>
+      <div class="step">
+        <div class="step-num">2</div>
+        <div class="step-content">
+          <div class="step-title">Vyhľadaj "Claude Code"</div>
+          <div class="step-desc">Hľadaj plugin od Anthropic. Klikni <strong>Install</strong> a reštartuj IDE.</div>
+        </div>
+      </div>
+      <div class="step">
+        <div class="step-num">3</div>
+        <div class="step-content">
+          <div class="step-title">Otvor Claude tool window</div>
+          <div class="step-desc">Po reštarte nájdeš Claude panel v pravom alebo dolnom tool window. Prípadne cez menu: <code>View → Tool Windows → Claude</code>.</div>
+        </div>
+      </div>
+      <div class="step">
+        <div class="step-num">4</div>
+        <div class="step-content">
+          <div class="step-title">Autentifikácia</div>
+          <div class="step-desc">Plugin zdieľa token s CLI — ak si prihlásený cez <code>claude login</code>, plugin funguje automaticky.</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="callout callout-info">
+      <div class="callout-label">// rovnaké funkcie</div>
+      <p>JetBrains plugin má rovnaký inline diff, schvaľovanie zmien aj klávesové skratky ako VS Code. Skratky sú mierne odlišné — plugin ich zobrazí pri prvom spustení.</p>
+    </div>
+  </div>
+
+  <!-- SECTION 4: Chrome Extension -->
+  <div class="section">
+    <div class="section-header">
+      <div class="section-num">04</div>
+      <h2>Chrome Extension</h2>
+    </div>
+
+    <p>
+      Chrome Extension prináša Claude Code priamo do prehliadača.
+      Je užitočná najmä pri práci s webovými aplikáciami — agent vidí
+      aktuálnu stránku a môže reagovať na jej obsah.
+    </p>
+
+    <div class="feature-grid">
+      <div class="feature-card">
+        <div class="feature-icon">👁️</div>
+        <div class="feature-name">Toolbar na stránke</div>
+        <div class="feature-desc">Zobrazí Claude panel priamo na webovej stránke bez prepínania kontextu.</div>
+      </div>
+      <div class="feature-card">
+        <div class="feature-icon">📸</div>
+        <div class="feature-name">Screenshot kontext</div>
+        <div class="feature-desc">Agent vidí aktuálnu stránku — môžeš sa pýtať na UI, chyby alebo obsah.</div>
+      </div>
+      <div class="feature-card">
+        <div class="feature-icon">💬</div>
+        <div class="feature-name">Toolbar komentáre</div>
+        <div class="feature-desc">Pridávaj komentáre a feedbacky priamo na stránku — zdieľaj s tímom.</div>
+      </div>
+      <div class="feature-card">
+        <div class="feature-icon">🔗</div>
+        <div class="feature-name">Prepojenie s CLI</div>
+        <div class="feature-desc">Extension je prepojená s terminálovým Claude Code — zdieľajú autentifikáciu.</div>
+      </div>
+    </div>
+
+    <div class="terminal">
+      <div class="terminal-header">
+        <div class="terminal-dot red"></div>
+        <div class="terminal-dot yellow"></div>
+        <div class="terminal-dot green"></div>
+        <span class="terminal-title">typický use-case — Chrome Extension</span>
+      </div>
+      <div class="terminal-body">
+        <div class="terminal-line"><span class="comment"># Vidíš bug na stránke? Klikni na Claude toolbar icon</span></div>
+        <div class="terminal-line"><span class="prompt">&gt;</span><span class="cmd"> Táto stránka má bug — login form sa neodošle. Analyzuj.</span></div>
+        <div class="terminal-line"><span class="out">Agent vidí screenshot stránky...</span></div>
+        <div class="terminal-line"><span class="out-success">✓ Identifikovaný problém: chýba event.preventDefault() v submit handleri</span></div>
+        <div class="terminal-line" style="margin-top:0.5rem"><span class="comment"># Agent môže priamo otvoriť súbor v editore a opraviť ho</span></div>
+      </div>
+    </div>
+
+    <div class="callout callout-warn">
+      <div class="callout-label">// kedy Chrome Extension použiť</div>
+      <p>Chrome Extension je ideálna pre <strong>vizuálny debugging</strong> a <strong>UI review</strong>. Pre samotné kódovanie je terminál alebo IDE extension efektívnejší.</p>
+    </div>
+  </div>
+
+  <!-- SECTION 5: Ktoré rozhranie kedy -->
+  <div class="section">
+    <div class="section-header">
+      <div class="section-num">05</div>
+      <h2>Ktoré rozhranie použiť kedy</h2>
+    </div>
+
+    <div class="terminal">
+      <div class="terminal-header">
+        <div class="terminal-dot red"></div>
+        <div class="terminal-dot yellow"></div>
+        <div class="terminal-dot green"></div>
+        <span class="terminal-title">prehľad použitia</span>
+      </div>
+      <div class="terminal-body">
+        <div class="terminal-line"><span class="out-success">CLI (terminál)</span></div>
+        <div class="terminal-line"><span class="out">  → Headless úlohy, CI/CD, scripty, serverové prostredia</span></div>
+        <div class="terminal-line"><span class="out">  → Plná kontrola, žiadne GUI overhead</span></div>
+
+        <div class="terminal-line" style="margin-top:0.75rem"><span class="out-success">VS Code / JetBrains</span></div>
+        <div class="terminal-line"><span class="out">  → Každodenné kódovanie, refaktoring, code review</span></div>
+        <div class="terminal-line"><span class="out">  → Inline diff — vidíš zmeny priamo v kontexte kódu</span></div>
+
+        <div class="terminal-line" style="margin-top:0.75rem"><span class="out-success">Chrome Extension</span></div>
+        <div class="terminal-line"><span class="out">  → UI debugging, vizuálna spätná väzba, stránkový kontext</span></div>
+        <div class="terminal-line"><span class="out">  → Toolbar komentáre pre tím</span></div>
+
+        <div class="terminal-line" style="margin-top:0.75rem"><span class="out-success">Web / Desktop App</span></div>
+        <div class="terminal-line"><span class="out">  → Rýchle konzultácie, práca bez lokálnej inštalácie</span></div>
+        <div class="terminal-line"><span class="out">  → GUI pre správu sessions a nastavení</span></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- QUIZ -->
+  <div class="section">
+    <div class="quiz">
+      <div class="quiz-header">// rýchly test</div>
+      <h3>Agent navrhol zmeny v 5 súboroch. Chceš skontrolovať každú zmenu individuálne pred schválením. Aká funkcia VS Code extension ti to umožní?</h3>
+      <div class="quiz-options">
+        <div class="quiz-option" onclick="answer(this, false)">
+          <span class="quiz-letter">A</span>
+          <span>Claude panel — chatová história s agentom</span>
+        </div>
+        <div class="quiz-option" onclick="answer(this, true)">
+          <span class="quiz-letter">B</span>
+          <span>Inline diff — zobrazí zmeny priamo v editore, schváliš súbor po súbore</span>
+        </div>
+        <div class="quiz-option" onclick="answer(this, false)">
+          <span class="quiz-letter">C</span>
+          <span>Chrome Extension — vizuálny náhľad zmien</span>
+        </div>
+        <div class="quiz-option" onclick="answer(this, false)">
+          <span class="quiz-letter">D</span>
+          <span>git diff — pozrieš si zmeny po commite</span>
+        </div>
+      </div>
+      <div class="quiz-feedback" id="qfeedback"></div>
+    </div>
+  </div>
+
+  <!-- SUMMARY -->
+  <div class="section">
+    <div class="callout callout-info">
+      <div class="callout-label">// zhrnutie lekcie 06</div>
+      <p>
+        Claude Code beží na 6 surfaces — CLI, Desktop, Web, VS Code, JetBrains a Chrome. Pre každodennú prácu je VS Code alebo JetBrains ideálny vďaka <strong>inline diff</strong>. CLI zostáva základom pre automatizáciu a CI/CD. Chrome Extension sa hodí pri UI debuggingu.
+      </p>
+    </div>
+  </div>
+
+  <!-- NAV -->
+  <div class="lesson-nav">
+    <a href="lekcia-05-claudemd.html" class="nav-btn">← Lekcia 05 — CLAUDE.md</a>
+    <a href="index.html" class="nav-btn primary">Späť na obsah kurzu →</a>
+  </div>
+
+</div>
+
+<script>
+  window.addEventListener('scroll', () => {
+    const el = document.documentElement;
+    const pct = (el.scrollTop / (el.scrollHeight - el.clientHeight)) * 100;
+    document.getElementById('prog-fill').style.width = pct + '%';
+    document.getElementById('prog-label').textContent = Math.round(pct) + '%';
+  });
+
+  function switchIDE(id) {
+    document.querySelectorAll('.ide-tab').forEach(t => t.classList.remove('active'));
+    document.querySelectorAll('.ide-panel').forEach(p => p.classList.remove('active'));
+    event.target.classList.add('active');
+    document.getElementById('ide-' + id).classList.add('active');
+  }
+
+  let answered = false;
+  function answer(el, correct) {
+    if (answered) return;
+    answered = true;
+    const fb = document.getElementById('qfeedback');
+    if (correct) {
+      el.classList.add('correct');
+      fb.textContent = '✓ Správne! Inline diff zobrazí každú zmenu priamo v editore v kontexte kódu — môžeš schváliť alebo zamietnuť zmeny súbor po súbore bez toho, aby si niečo prepásal.';
+      fb.className = 'quiz-feedback show ok';
+    } else {
+      el.classList.add('wrong');
+      document.querySelectorAll('.quiz-option')[1].classList.add('correct');
+      fb.textContent = '✗ Nie celkom. Správna odpoveď je inline diff — práve na to je navrhnutý. Vidíš zelené (pridané) a červené (odobrané) riadky priamo v editore a rozhoduješ súbor po súbore.';
+      fb.className = 'quiz-feedback show err';
+    }
+  }
+</script>
+</body>
+</html>
