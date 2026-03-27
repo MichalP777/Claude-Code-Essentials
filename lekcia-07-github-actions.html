@@ -1,0 +1,632 @@
+<!DOCTYPE html>
+<html lang="sk">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Lekcia 07 — GitHub Actions a CI/CD</title>
+<link href="https://fonts.googleapis.com/css2?family=Space+Mono:ital,wght@0,400;0,700;1,400&family=Syne:wght@400;700;800&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #0a0c10;
+    --surface: #111318;
+    --surface2: #191c24;
+    --border: #1e2330;
+    --accent: #e8ff5a;
+    --accent2: #5affb8;
+    --accent3: #ff6b6b;
+    --text: #d4d8e8;
+    --text-dim: #5a6080;
+    --text-bright: #f0f4ff;
+    --glow: rgba(232,255,90,0.15);
+    --mono: 'Space Mono', monospace;
+    --sans: 'Syne', sans-serif;
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body { background: var(--bg); color: var(--text); font-family: var(--sans); min-height: 100vh; overflow-x: hidden; }
+
+  body::before {
+    content: ''; position: fixed; inset: 0;
+    background-image:
+      linear-gradient(rgba(232,255,90,0.03) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(232,255,90,0.03) 1px, transparent 1px);
+    background-size: 40px 40px; pointer-events: none; z-index: 0;
+  }
+
+  .topbar {
+    position: sticky; top: 0; z-index: 100;
+    background: rgba(10,12,16,0.92); backdrop-filter: blur(12px);
+    border-bottom: 1px solid var(--border); padding: 0 2rem;
+    display: flex; align-items: center; justify-content: space-between; height: 56px;
+  }
+  .topbar-left { display: flex; align-items: center; gap: 1rem; }
+  .logo { font-family: var(--mono); font-size: 0.8rem; color: var(--accent); letter-spacing: 0.1em; text-decoration: none; }
+  .sep { color: var(--text-dim); }
+  .lesson-badge { font-family: var(--mono); font-size: 0.7rem; color: var(--text-dim); background: var(--surface2); border: 1px solid var(--border); padding: 3px 10px; border-radius: 2px; }
+  .progress-wrap { display: flex; align-items: center; gap: 0.75rem; }
+  .progress-label { font-family: var(--mono); font-size: 0.65rem; color: var(--text-dim); }
+  .progress-bar { width: 120px; height: 3px; background: var(--border); border-radius: 2px; overflow: hidden; }
+  .progress-fill { height: 100%; background: var(--accent); width: 0%; transition: width 0.4s ease; box-shadow: 0 0 8px var(--accent); }
+
+  .container { position: relative; z-index: 1; max-width: 860px; margin: 0 auto; padding: 3rem 2rem 6rem; }
+
+  .hero { margin-bottom: 4rem; animation: fadeUp 0.7s ease both; }
+  .eyebrow { font-family: var(--mono); font-size: 0.7rem; color: var(--accent); letter-spacing: 0.2em; text-transform: uppercase; margin-bottom: 1rem; display: flex; align-items: center; gap: 0.5rem; }
+  .eyebrow::before { content: '>'; color: var(--accent); }
+  h1 { font-family: var(--sans); font-size: clamp(2.2rem, 5vw, 3.5rem); font-weight: 800; color: var(--text-bright); line-height: 1.1; letter-spacing: -0.02em; margin-bottom: 1.5rem; }
+  h1 em { color: var(--accent); font-style: normal; }
+  .hero-desc { color: var(--text-dim); line-height: 1.7; max-width: 600px; font-family: var(--mono); font-size: 0.85rem; }
+
+  .objectives { background: var(--surface); border: 1px solid var(--border); border-left: 3px solid var(--accent); padding: 1.5rem 2rem; margin-bottom: 3rem; animation: fadeUp 0.7s 0.15s ease both; }
+  .objectives h3 { font-family: var(--mono); font-size: 0.7rem; color: var(--accent); letter-spacing: 0.15em; text-transform: uppercase; margin-bottom: 1rem; }
+  .obj-list { list-style: none; display: flex; flex-direction: column; gap: 0.6rem; }
+  .obj-list li { font-size: 0.9rem; color: var(--text); display: flex; align-items: flex-start; gap: 0.75rem; line-height: 1.5; }
+  .obj-list li::before { content: '✓'; color: var(--accent2); font-family: var(--mono); font-size: 0.8rem; flex-shrink: 0; margin-top: 2px; }
+
+  .section { margin-bottom: 3rem; animation: fadeUp 0.7s ease both; }
+  .section:nth-child(3) { animation-delay: 0.2s; }
+  .section:nth-child(4) { animation-delay: 0.3s; }
+  .section:nth-child(5) { animation-delay: 0.4s; }
+  .section:nth-child(6) { animation-delay: 0.5s; }
+  .section:nth-child(7) { animation-delay: 0.6s; }
+
+  .section-header { display: flex; align-items: center; gap: 1rem; margin-bottom: 1.5rem; }
+  .section-num { font-family: var(--mono); font-size: 0.7rem; color: var(--text-dim); background: var(--surface2); border: 1px solid var(--border); width: 32px; height: 32px; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+  h2 { font-family: var(--sans); font-size: 1.4rem; font-weight: 800; color: var(--text-bright); letter-spacing: -0.01em; }
+
+  p { font-size: 0.95rem; line-height: 1.8; color: var(--text); margin-bottom: 1rem; }
+  p strong { color: var(--text-bright); font-weight: 700; }
+
+  /* TERMINAL / YAML */
+  .terminal, .yaml-block {
+    background: #060810; border: 1px solid var(--border);
+    margin: 1.5rem 0; font-family: var(--mono); overflow: hidden;
+  }
+  .terminal { border-top: 2px solid var(--accent); }
+  .yaml-block { border-top: 2px solid var(--accent2); }
+
+  .terminal-header, .yaml-header {
+    padding: 0.5rem 1rem; display: flex; align-items: center; gap: 0.5rem;
+    border-bottom: 1px solid var(--border); background: var(--surface);
+  }
+  .terminal-dot { width: 8px; height: 8px; border-radius: 50%; }
+  .terminal-dot.red { background: #ff5f57; }
+  .terminal-dot.yellow { background: #febc2e; }
+  .terminal-dot.green { background: #28c840; }
+  .terminal-title, .yaml-title { font-size: 0.65rem; color: var(--text-dim); margin-left: auto; letter-spacing: 0.1em; }
+  .yaml-title { color: var(--accent2); margin-left: 0; font-size: 0.7rem; }
+
+  .terminal-body, .yaml-body { padding: 1.25rem 1.5rem; }
+  .terminal-line { display: flex; gap: 0.75rem; margin-bottom: 0.4rem; line-height: 1.6; font-size: 0.82rem; }
+  .prompt { color: var(--accent); flex-shrink: 0; }
+  .cmd { color: var(--text-bright); }
+  .out { color: var(--text-dim); }
+  .out-success { color: var(--accent2); }
+  .out-warn { color: #febc2e; }
+  .out-err { color: var(--accent3); }
+  .comment { color: var(--text-dim); font-style: italic; }
+
+  /* YAML syntax */
+  .yaml-body { line-height: 1.9; font-size: 0.8rem; }
+  .y-key { color: var(--accent2); }
+  .y-val { color: var(--text); }
+  .y-str { color: #ff9d6c; }
+  .y-comment { color: var(--text-dim); font-style: italic; }
+  .y-trigger { color: var(--accent); }
+  .y-line { display: block; white-space: pre; }
+
+  /* CALLOUT */
+  .callout { padding: 1rem 1.25rem; margin: 1.5rem 0; border-left: 3px solid; line-height: 1.6; font-family: var(--mono); }
+  .callout-tip { background: rgba(90,255,184,0.06); border-color: var(--accent2); color: var(--accent2); }
+  .callout-warn { background: rgba(254,188,46,0.06); border-color: #febc2e; color: #febc2e; }
+  .callout-info { background: rgba(232,255,90,0.06); border-color: var(--accent); color: var(--accent); }
+  .callout-danger { background: rgba(255,107,107,0.08); border-color: var(--accent3); color: var(--accent3); }
+  .callout-label { font-size: 0.65rem; letter-spacing: 0.15em; text-transform: uppercase; margin-bottom: 0.4rem; opacity: 0.8; }
+  .callout p { font-family: var(--mono); font-size: 0.82rem; margin: 0; color: inherit; }
+
+  /* PIPELINE FLOW */
+  .pipeline {
+    display: flex; align-items: stretch; gap: 0;
+    margin: 1.5rem 0; overflow-x: auto;
+    border: 1px solid var(--border);
+  }
+  .pipe-step {
+    flex: 1; min-width: 120px;
+    background: var(--surface); padding: 1.25rem 1rem;
+    border-right: 1px solid var(--border);
+    display: flex; flex-direction: column; gap: 0.5rem;
+    position: relative;
+  }
+  .pipe-step:last-child { border-right: none; }
+  .pipe-step.highlight { background: var(--surface2); }
+  .pipe-step.highlight::before {
+    content: ''; position: absolute; top: 0; left: 0; right: 0;
+    height: 2px; background: var(--accent);
+  }
+  .pipe-icon { font-size: 1.2rem; }
+  .pipe-name { font-family: var(--mono); font-size: 0.7rem; color: var(--accent); letter-spacing: 0.05em; }
+  .pipe-desc { font-size: 0.75rem; color: var(--text-dim); line-height: 1.4; }
+  .pipe-arrow { display: flex; align-items: center; padding: 0 0.25rem; color: var(--text-dim); font-size: 1rem; flex-shrink: 0; background: var(--bg); }
+
+  /* USE CASE CARDS */
+  .usecase-grid {
+    display: grid; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+    gap: 1px; background: var(--border); border: 1px solid var(--border);
+    margin: 1.5rem 0; overflow: hidden;
+  }
+  .usecase-card { background: var(--surface); padding: 1.25rem 1.5rem; }
+  .usecase-card:hover { background: var(--surface2); }
+  .usecase-trigger { font-family: var(--mono); font-size: 0.7rem; color: var(--accent); margin-bottom: 0.4rem; }
+  .usecase-title { font-size: 0.88rem; color: var(--text-bright); font-weight: 700; margin-bottom: 0.35rem; }
+  .usecase-desc { font-size: 0.78rem; color: var(--text-dim); line-height: 1.5; }
+
+  /* QUIZ */
+  .quiz { background: var(--surface); border: 1px solid var(--border); padding: 2rem; margin-top: 2rem; }
+  .quiz-header { font-family: var(--mono); font-size: 0.65rem; color: var(--accent); letter-spacing: 0.2em; text-transform: uppercase; margin-bottom: 0.5rem; }
+  .quiz h3 { font-size: 1rem; color: var(--text-bright); font-weight: 700; margin-bottom: 1.5rem; line-height: 1.5; }
+  .quiz-options { display: flex; flex-direction: column; gap: 0.6rem; margin-bottom: 1rem; }
+  .quiz-option { display: flex; align-items: flex-start; gap: 0.75rem; padding: 0.9rem 1rem; background: var(--surface2); border: 1px solid var(--border); cursor: pointer; transition: border-color 0.2s; font-size: 0.88rem; line-height: 1.5; }
+  .quiz-option:hover { border-color: var(--accent); }
+  .quiz-option.correct { border-color: var(--accent2); background: rgba(90,255,184,0.06); color: var(--accent2); }
+  .quiz-option.wrong { border-color: var(--accent3); background: rgba(255,107,107,0.06); color: var(--accent3); }
+  .quiz-letter { font-family: var(--mono); font-size: 0.7rem; color: var(--text-dim); flex-shrink: 0; margin-top: 2px; }
+  .quiz-feedback { font-family: var(--mono); font-size: 0.8rem; padding: 0.75rem 1rem; display: none; line-height: 1.5; }
+  .quiz-feedback.show { display: block; }
+  .quiz-feedback.ok { color: var(--accent2); background: rgba(90,255,184,0.06); border-left: 3px solid var(--accent2); }
+  .quiz-feedback.err { color: var(--accent3); background: rgba(255,107,107,0.06); border-left: 3px solid var(--accent3); }
+
+  /* NAV */
+  .lesson-nav { display: flex; justify-content: space-between; align-items: center; margin-top: 4rem; padding-top: 2rem; border-top: 1px solid var(--border); gap: 1rem; }
+  .nav-btn { font-family: var(--mono); font-size: 0.75rem; padding: 0.7rem 1.4rem; border: 1px solid var(--border); background: var(--surface); color: var(--text); text-decoration: none; letter-spacing: 0.05em; transition: border-color 0.2s, color 0.2s; }
+  .nav-btn:hover { border-color: var(--accent); color: var(--accent); }
+  .nav-btn.primary { border-color: var(--accent); color: var(--accent); background: rgba(232,255,90,0.06); }
+  .nav-btn.primary:hover { background: rgba(232,255,90,0.12); }
+
+  @keyframes fadeUp { from { opacity: 0; transform: translateY(16px); } to { opacity: 1; transform: translateY(0); } }
+
+  @media (max-width: 640px) {
+    .pipeline { flex-direction: column; }
+    .pipe-step { border-right: none; border-bottom: 1px solid var(--border); }
+    .pipe-arrow { display: none; }
+  }
+</style>
+</head>
+<body>
+
+<nav class="topbar">
+  <div class="topbar-left">
+    <a href="index.html" class="logo">claude_code</a>
+    <span class="sep">/</span>
+    <span class="lesson-badge">lekcia 07</span>
+  </div>
+  <div class="progress-wrap">
+    <span class="progress-label" id="prog-label">0%</span>
+    <div class="progress-bar"><div class="progress-fill" id="prog-fill"></div></div>
+  </div>
+</nav>
+
+<div class="container">
+
+  <!-- HERO -->
+  <div class="hero">
+    <div class="eyebrow">Claude Code Essentials &nbsp;·&nbsp; Lekcia 07</div>
+    <h1>GitHub Actions<br>a <em>CI/CD</em></h1>
+    <p class="hero-desc">
+      Claude Code nie je len interaktívny nástroj — beží aj bez teba.
+      Nauč sa integrovať agenta do GitHub Actions pipeline a automatizovať
+      kódovacie úlohy pri každom pull requeste.
+    </p>
+  </div>
+
+  <!-- OBJECTIVES -->
+  <div class="objectives">
+    <h3>// čo sa naučíš</h3>
+    <ul class="obj-list">
+      <li>Pochopiť headless mód — ako Claude Code beží bez interakcie</li>
+      <li>Nastaviť GitHub Actions workflow s Claude Code agentom</li>
+      <li>Bezpečne uložiť API kľúč ako GitHub Secret</li>
+      <li>Spúšťať agenta pri PR, push aj manuálne cez workflow_dispatch</li>
+      <li>Poznať typické use cases: code review, generovanie testov, dokumentácia</li>
+    </ul>
+  </div>
+
+  <!-- SECTION 1: Headless mód -->
+  <div class="section">
+    <div class="section-header">
+      <div class="section-num">01</div>
+      <h2>Headless mód — Claude Code bez interakcie</h2>
+    </div>
+
+    <p>
+      V predvolenom móde Claude Code čaká na tvoje správy interaktívne.
+      <strong>Headless mód</strong> umožňuje spustiť agenta s konkrétnou úlohou,
+      vykonať ju a skončiť — ideálne pre skripty a CI/CD pipeline.
+    </p>
+
+    <div class="terminal">
+      <div class="terminal-header">
+        <div class="terminal-dot red"></div>
+        <div class="terminal-dot yellow"></div>
+        <div class="terminal-dot green"></div>
+        <span class="terminal-title">headless mód</span>
+      </div>
+      <div class="terminal-body">
+        <div class="terminal-line"><span class="comment"># Interaktívny mód (predvolený) — čaká na vstup</span></div>
+        <div class="terminal-line"><span class="prompt">$</span><span class="cmd">claude</span></div>
+        <div class="terminal-line"><span class="out">&gt; _</span></div>
+
+        <div class="terminal-line" style="margin-top:0.75rem"><span class="comment"># Headless — vykoná úlohu a skončí</span></div>
+        <div class="terminal-line"><span class="prompt">$</span><span class="cmd">claude --headless "skontroluj testy a oprav failing prípady"</span></div>
+        <div class="terminal-line"><span class="out">Running tests... 3 failures found</span></div>
+        <div class="terminal-line"><span class="out">Fixing: test/auth.test.ts (line 42)</span></div>
+        <div class="terminal-line"><span class="out">Fixing: test/api.test.ts (line 88)</span></div>
+        <div class="terminal-line"><span class="out-success">✓ All tests passing. Exit 0.</span></div>
+
+        <div class="terminal-line" style="margin-top:0.75rem"><span class="comment"># Skrátená forma</span></div>
+        <div class="terminal-line"><span class="prompt">$</span><span class="cmd">claude -H "vygeneruj JSDoc pre všetky exportované funkcie"</span></div>
+
+        <div class="terminal-line" style="margin-top:0.75rem"><span class="comment"># Výstup do súboru</span></div>
+        <div class="terminal-line"><span class="prompt">$</span><span class="cmd">claude -H "zhrň zmeny v tomto PR" &gt; pr-summary.md</span></div>
+      </div>
+    </div>
+
+    <div class="callout callout-info">
+      <div class="callout-label">// exit kódy</div>
+      <p>Headless mód vracia štandardné exit kódy: <strong>0</strong> = úspech, <strong>1</strong> = chyba. Pipeline môže rozhodovať podľa výsledku — napr. zablokovať merge ak agent nájde bezpečnostný problém.</p>
+    </div>
+  </div>
+
+  <!-- SECTION 2: Pipeline flow -->
+  <div class="section">
+    <div class="section-header">
+      <div class="section-num">02</div>
+      <h2>Ako vyzerá CI/CD s Claude Code</h2>
+    </div>
+
+    <p>
+      Claude Code sa v pipeline správa ako každý iný krok — dostane kontext,
+      vykoná úlohu a vráti výsledok. Môže čítať kód, spúšťať príkazy,
+      písať súbory a vytvárať komentáre k PR.
+    </p>
+
+    <div class="pipeline">
+      <div class="pipe-step">
+        <div class="pipe-icon">📤</div>
+        <div class="pipe-name">trigger</div>
+        <div class="pipe-desc">PR otvorený, push na main, manuálne</div>
+      </div>
+      <div class="pipe-arrow">→</div>
+      <div class="pipe-step">
+        <div class="pipe-icon">🔧</div>
+        <div class="pipe-name">setup</div>
+        <div class="pipe-desc">Checkout, Node.js, npm install</div>
+      </div>
+      <div class="pipe-arrow">→</div>
+      <div class="pipe-step highlight">
+        <div class="pipe-icon">🤖</div>
+        <div class="pipe-name">claude agent</div>
+        <div class="pipe-desc">Headless úloha — review, testy, docs</div>
+      </div>
+      <div class="pipe-arrow">→</div>
+      <div class="pipe-step">
+        <div class="pipe-icon">💬</div>
+        <div class="pipe-name">výstup</div>
+        <div class="pipe-desc">PR komentár, commit, report</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- SECTION 3: GitHub Secret -->
+  <div class="section">
+    <div class="section-header">
+      <div class="section-num">03</div>
+      <h2>API kľúč ako GitHub Secret</h2>
+    </div>
+
+    <p>
+      Claude Code v GitHub Actions sa autentifikuje cez <strong>API kľúč</strong>,
+      nie cez browser login. Kľúč musí byť bezpečne uložený ako GitHub Secret —
+      nikdy nie priamo v kóde alebo YAML súbore.
+    </p>
+
+    <div class="terminal">
+      <div class="terminal-header">
+        <div class="terminal-dot red"></div>
+        <div class="terminal-dot yellow"></div>
+        <div class="terminal-dot green"></div>
+        <span class="terminal-title">nastavenie GitHub Secret</span>
+      </div>
+      <div class="terminal-body">
+        <div class="terminal-line"><span class="comment"># Pridanie Secret cez GitHub CLI</span></div>
+        <div class="terminal-line"><span class="prompt">$</span><span class="cmd">gh secret set ANTHROPIC_API_KEY</span></div>
+        <div class="terminal-line"><span class="out">? Enter secret value: **********************</span></div>
+        <div class="terminal-line"><span class="out-success">✓ Set secret ANTHROPIC_API_KEY for MichalP777/projekt</span></div>
+
+        <div class="terminal-line" style="margin-top:0.75rem"><span class="comment"># Alebo cez GitHub Web UI:</span></div>
+        <div class="terminal-line"><span class="out">  Settings → Secrets and variables → Actions → New repository secret</span></div>
+        <div class="terminal-line"><span class="out">  Name: ANTHROPIC_API_KEY</span></div>
+        <div class="terminal-line"><span class="out">  Value: sk-ant-api03-...</span></div>
+      </div>
+    </div>
+
+    <div class="callout callout-danger">
+      <div class="callout-label">// nikdy takto</div>
+      <p>Nikdy neuvádzaj API kľúč priamo v <code>.github/workflows/*.yml</code> súbore — je viditeľný pre každého s prístupom k repozitáru a GitHub ho môže zneplatniť.</p>
+    </div>
+  </div>
+
+  <!-- SECTION 4: Workflow YAML -->
+  <div class="section">
+    <div class="section-header">
+      <div class="section-num">04</div>
+      <h2>GitHub Actions workflow — príklady</h2>
+    </div>
+
+    <p>Tri najčastejšie use cases s kompletným YAML:</p>
+
+    <!-- Code Review -->
+    <div class="yaml-block">
+      <div class="yaml-header">
+        <span class="yaml-title">📄 .github/workflows/claude-review.yml — automatický code review na PR</span>
+      </div>
+      <div class="yaml-body">
+        <span class="y-line"><span class="y-key">name:</span> <span class="y-str">Claude Code Review</span></span>
+        <span class="y-line"></span>
+        <span class="y-line"><span class="y-key">on:</span></span>
+        <span class="y-line">  <span class="y-trigger">pull_request:</span></span>
+        <span class="y-line">    <span class="y-key">types:</span> <span class="y-val">[opened, synchronize]</span></span>
+        <span class="y-line"></span>
+        <span class="y-line"><span class="y-key">jobs:</span></span>
+        <span class="y-line">  <span class="y-key">review:</span></span>
+        <span class="y-line">    <span class="y-key">runs-on:</span> <span class="y-str">ubuntu-latest</span></span>
+        <span class="y-line">    <span class="y-key">permissions:</span></span>
+        <span class="y-line">      <span class="y-key">contents:</span> <span class="y-val">read</span></span>
+        <span class="y-line">      <span class="y-key">pull-requests:</span> <span class="y-val">write</span>  <span class="y-comment"># na písanie komentárov</span></span>
+        <span class="y-line">    <span class="y-key">steps:</span></span>
+        <span class="y-line">      - <span class="y-key">uses:</span> <span class="y-str">actions/checkout@v4</span></span>
+        <span class="y-line">        <span class="y-key">with:</span></span>
+        <span class="y-line">          <span class="y-key">fetch-depth:</span> <span class="y-val">0</span>  <span class="y-comment"># celá história pre git diff</span></span>
+        <span class="y-line"></span>
+        <span class="y-line">      - <span class="y-key">uses:</span> <span class="y-str">actions/setup-node@v4</span></span>
+        <span class="y-line">        <span class="y-key">with:</span></span>
+        <span class="y-line">          <span class="y-key">node-version:</span> <span class="y-str">'22'</span></span>
+        <span class="y-line"></span>
+        <span class="y-line">      - <span class="y-key">name:</span> <span class="y-str">Inštalácia Claude Code</span></span>
+        <span class="y-line">        <span class="y-key">run:</span> <span class="y-str">npm install -g @anthropic-ai/claude-code</span></span>
+        <span class="y-line"></span>
+        <span class="y-line">      - <span class="y-key">name:</span> <span class="y-str">Claude Code Review</span></span>
+        <span class="y-line">        <span class="y-key">env:</span></span>
+        <span class="y-line">          <span class="y-key">ANTHROPIC_API_KEY:</span> <span class="y-trigger">${{ secrets.ANTHROPIC_API_KEY }}</span></span>
+        <span class="y-line">          <span class="y-key">GITHUB_TOKEN:</span> <span class="y-trigger">${{ secrets.GITHUB_TOKEN }}</span></span>
+        <span class="y-line">        <span class="y-key">run:</span> <span class="y-val">|</span></span>
+        <span class="y-line">          <span class="y-str">claude --headless \</span></span>
+        <span class="y-line">            <span class="y-str">"Skontroluj zmeny v tomto PR (git diff origin/main). \</span></span>
+        <span class="y-line">             <span class="y-str">Hľadaj bugy, bezpečnostné problémy a porušenie konvencií. \</span></span>
+        <span class="y-line">             <span class="y-str">Výsledok zakomentuj do PR pomocou GitHub CLI."</span></span>
+      </div>
+    </div>
+
+    <!-- Test generation -->
+    <div class="yaml-block">
+      <div class="yaml-header">
+        <span class="yaml-title">📄 .github/workflows/claude-tests.yml — generovanie testov pre nové súbory</span>
+      </div>
+      <div class="yaml-body">
+        <span class="y-line"><span class="y-key">name:</span> <span class="y-str">Generate Tests</span></span>
+        <span class="y-line"></span>
+        <span class="y-line"><span class="y-key">on:</span></span>
+        <span class="y-line">  <span class="y-trigger">pull_request:</span></span>
+        <span class="y-line">    <span class="y-key">paths:</span></span>
+        <span class="y-line">      - <span class="y-str">'src/**/*.ts'</span>  <span class="y-comment"># len keď sa zmení TypeScript kód</span></span>
+        <span class="y-line"></span>
+        <span class="y-line"><span class="y-key">jobs:</span></span>
+        <span class="y-line">  <span class="y-key">generate-tests:</span></span>
+        <span class="y-line">    <span class="y-key">runs-on:</span> <span class="y-str">ubuntu-latest</span></span>
+        <span class="y-line">    <span class="y-key">permissions:</span></span>
+        <span class="y-line">      <span class="y-key">contents:</span> <span class="y-val">write</span>  <span class="y-comment"># na commitovanie nových testov</span></span>
+        <span class="y-line">    <span class="y-key">steps:</span></span>
+        <span class="y-line">      - <span class="y-key">uses:</span> <span class="y-str">actions/checkout@v4</span></span>
+        <span class="y-line">      - <span class="y-key">uses:</span> <span class="y-str">actions/setup-node@v4</span></span>
+        <span class="y-line">        <span class="y-key">with:</span> <span class="y-val">{ node-version: '22' }</span></span>
+        <span class="y-line"></span>
+        <span class="y-line">      - <span class="y-key">run:</span> <span class="y-str">npm install -g @anthropic-ai/claude-code</span></span>
+        <span class="y-line"></span>
+        <span class="y-line">      - <span class="y-key">name:</span> <span class="y-str">Generuj testy</span></span>
+        <span class="y-line">        <span class="y-key">env:</span></span>
+        <span class="y-line">          <span class="y-key">ANTHROPIC_API_KEY:</span> <span class="y-trigger">${{ secrets.ANTHROPIC_API_KEY }}</span></span>
+        <span class="y-line">        <span class="y-key">run:</span> <span class="y-val">|</span></span>
+        <span class="y-line">          <span class="y-str">claude --headless \</span></span>
+        <span class="y-line">            <span class="y-str">"Pre každý nový súbor v src/ ktorý nemá test, \</span></span>
+        <span class="y-line">             <span class="y-str">vytvor zodpovedajúci test súbor v tests/. \</span></span>
+        <span class="y-line">             <span class="y-str">Použi Vitest a dodržiavaj konvencie v .claude/rules/testing.md"</span></span>
+        <span class="y-line"></span>
+        <span class="y-line">      - <span class="y-key">name:</span> <span class="y-str">Commitni nové testy</span></span>
+        <span class="y-line">        <span class="y-key">run:</span> <span class="y-val">|</span></span>
+        <span class="y-line">          <span class="y-str">git config user.name "Claude Code Bot"</span></span>
+        <span class="y-line">          <span class="y-str">git config user.email "bot@anthropic.com"</span></span>
+        <span class="y-line">          <span class="y-str">git add tests/</span></span>
+        <span class="y-line">          <span class="y-str">git diff --staged --quiet || git commit -m "feat: add generated tests"</span></span>
+        <span class="y-line">          <span class="y-str">git push</span></span>
+      </div>
+    </div>
+
+    <!-- Manual trigger -->
+    <div class="yaml-block">
+      <div class="yaml-header">
+        <span class="yaml-title">📄 workflow_dispatch — manuálne spustenie s parametrami</span>
+      </div>
+      <div class="yaml-body">
+        <span class="y-line"><span class="y-key">name:</span> <span class="y-str">Claude Manual Task</span></span>
+        <span class="y-line"></span>
+        <span class="y-line"><span class="y-key">on:</span></span>
+        <span class="y-line">  <span class="y-trigger">workflow_dispatch:</span>  <span class="y-comment"># manuálne spustenie z GitHub UI</span></span>
+        <span class="y-line">    <span class="y-key">inputs:</span></span>
+        <span class="y-line">      <span class="y-key">task:</span></span>
+        <span class="y-line">        <span class="y-key">description:</span> <span class="y-str">'Úloha pre agenta'</span></span>
+        <span class="y-line">        <span class="y-key">required:</span> <span class="y-val">true</span></span>
+        <span class="y-line">        <span class="y-key">default:</span> <span class="y-str">'Skontroluj bezpečnosť závislostí'</span></span>
+        <span class="y-line"></span>
+        <span class="y-line"><span class="y-key">jobs:</span></span>
+        <span class="y-line">  <span class="y-key">run-task:</span></span>
+        <span class="y-line">    <span class="y-key">runs-on:</span> <span class="y-str">ubuntu-latest</span></span>
+        <span class="y-line">    <span class="y-key">steps:</span></span>
+        <span class="y-line">      - <span class="y-key">uses:</span> <span class="y-str">actions/checkout@v4</span></span>
+        <span class="y-line">      - <span class="y-key">run:</span> <span class="y-str">npm install -g @anthropic-ai/claude-code</span></span>
+        <span class="y-line">      - <span class="y-key">env:</span></span>
+        <span class="y-line">          <span class="y-key">ANTHROPIC_API_KEY:</span> <span class="y-trigger">${{ secrets.ANTHROPIC_API_KEY }}</span></span>
+        <span class="y-line">        <span class="y-key">run:</span> <span class="y-trigger">claude --headless "${{ github.event.inputs.task }}"</span></span>
+      </div>
+    </div>
+  </div>
+
+  <!-- SECTION 5: Use cases -->
+  <div class="section">
+    <div class="section-header">
+      <div class="section-num">05</div>
+      <h2>Typické use cases v CI/CD</h2>
+    </div>
+
+    <div class="usecase-grid">
+      <div class="usecase-card">
+        <div class="usecase-trigger">on: pull_request</div>
+        <div class="usecase-title">Automatický code review</div>
+        <div class="usecase-desc">Agent skontroluje diff, nájde bugy a navrhne vylepšenia — komentár priamo na PR.</div>
+      </div>
+      <div class="usecase-card">
+        <div class="usecase-trigger">on: pull_request paths: src/**</div>
+        <div class="usecase-title">Generovanie testov</div>
+        <div class="usecase-desc">Pre každý nový súbor bez testu agent vygeneruje test a commitne ho do PR.</div>
+      </div>
+      <div class="usecase-card">
+        <div class="usecase-trigger">on: push main</div>
+        <div class="usecase-title">Aktualizácia dokumentácie</div>
+        <div class="usecase-desc">Po merge agent aktualizuje README, API docs alebo CHANGELOG na základe zmien.</div>
+      </div>
+      <div class="usecase-card">
+        <div class="usecase-trigger">on: schedule cron</div>
+        <div class="usecase-title">Bezpečnostný audit</div>
+        <div class="usecase-desc">Každý týždeň agent skontroluje závislosti, permissions a potenciálne zraniteľnosti.</div>
+      </div>
+      <div class="usecase-card">
+        <div class="usecase-trigger">on: workflow_dispatch</div>
+        <div class="usecase-title">Manuálne úlohy</div>
+        <div class="usecase-desc">Spusti agenta na demand s vlastnou úlohou — refaktoring, migrácia, analýza.</div>
+      </div>
+      <div class="usecase-card">
+        <div class="usecase-trigger">on: issue_comment</div>
+        <div class="usecase-title">Bot na issues</div>
+        <div class="usecase-desc">Keď niekto napíše "/claude fix this", agent sa pokúsi problém vyriešiť automaticky.</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- SECTION 6: Bezpečnosť a limity -->
+  <div class="section">
+    <div class="section-header">
+      <div class="section-num">06</div>
+      <h2>Bezpečnosť a limity v CI/CD</h2>
+    </div>
+
+    <div class="terminal">
+      <div class="terminal-header">
+        <div class="terminal-dot red"></div>
+        <div class="terminal-dot yellow"></div>
+        <div class="terminal-dot green"></div>
+        <span class="terminal-title">best practices</span>
+      </div>
+      <div class="terminal-body">
+        <div class="terminal-line"><span class="out-success">✓ Vždy používaj</span></div>
+        <div class="terminal-line"><span class="out">  secrets.ANTHROPIC_API_KEY — nikdy plaintext kľúč</span></div>
+        <div class="terminal-line"><span class="out">  permissions: read len tam kde nepotrebuješ write</span></div>
+        <div class="terminal-line"><span class="out">  paths: filter — nespúšťaj agenta pre každý push</span></div>
+        <div class="terminal-line"><span class="out">  timeout-minutes: 10 — agent nesmie bežať donekonečna</span></div>
+
+        <div class="terminal-line" style="margin-top:0.75rem"><span class="out-warn">⚠ Dávaj pozor na</span></div>
+        <div class="terminal-line"><span class="out">  Fork PR — externe PR môžu mať prístup k secrets</span></div>
+        <div class="terminal-line"><span class="out">  Agent commituje kód — vždy kontroluj čo commitol</span></div>
+        <div class="terminal-line"><span class="out">  Náklady — každý workflow run spotrebuje tokeny</span></div>
+
+        <div class="terminal-line" style="margin-top:0.75rem"><span class="comment"># Ochrana fork PR — spusti len z dôveryhodných vetiev</span></div>
+        <div class="terminal-line"><span class="out">  if: github.event.pull_request.head.repo.full_name == github.repository</span></div>
+      </div>
+    </div>
+
+    <div class="callout callout-warn">
+      <div class="callout-label">// fork pull requesty</div>
+      <p>GitHub Actions <strong>nezdieľa secrets</strong> s fork PR od externých prispievateľov. Ak potrebuješ agenta aj pre externé PR, použi <code>pull_request_target</code> trigger opatrne — má prístup k secrets, ale beží na kóde z forku.</p>
+    </div>
+  </div>
+
+  <!-- QUIZ -->
+  <div class="section">
+    <div class="quiz">
+      <div class="quiz-header">// rýchly test</div>
+      <h3>Chceš, aby Claude Code automaticky pridal komentár ku každému novému PR s code review. Aký GitHub Actions trigger použiješ?</h3>
+      <div class="quiz-options">
+        <div class="quiz-option" onclick="answer(this, false)">
+          <span class="quiz-letter">A</span>
+          <span>on: push — spustí sa pri každom push na akúkoľvek vetvu</span>
+        </div>
+        <div class="quiz-option" onclick="answer(this, true)">
+          <span class="quiz-letter">B</span>
+          <span>on: pull_request: types: [opened, synchronize] — spustí sa pri otvorení a aktualizácii PR</span>
+        </div>
+        <div class="quiz-option" onclick="answer(this, false)">
+          <span class="quiz-letter">C</span>
+          <span>on: workflow_dispatch — manuálne spustenie z GitHub UI</span>
+        </div>
+        <div class="quiz-option" onclick="answer(this, false)">
+          <span class="quiz-letter">D</span>
+          <span>on: schedule — spustí sa v pravidelných intervaloch</span>
+        </div>
+      </div>
+      <div class="quiz-feedback" id="qfeedback"></div>
+    </div>
+  </div>
+
+  <!-- SUMMARY -->
+  <div class="section">
+    <div class="callout callout-info">
+      <div class="callout-label">// zhrnutie lekcie 07</div>
+      <p>
+        Claude Code v headless móde beží autonómne — ideálny pre GitHub Actions. API kľúč ukladaj vždy ako GitHub Secret. Najčastejšie use cases: automatický code review, generovanie testov a aktualizácia dokumentácie. Vždy nastav <strong>timeout</strong> a <strong>minimálne permissions</strong>.
+      </p>
+    </div>
+  </div>
+
+  <!-- NAV -->
+  <div class="lesson-nav">
+    <a href="lekcia-06-ide.html" class="nav-btn">← Lekcia 06 — IDE</a>
+    <a href="index.html" class="nav-btn primary">Späť na obsah kurzu →</a>
+  </div>
+
+</div>
+
+<script>
+  window.addEventListener('scroll', () => {
+    const el = document.documentElement;
+    const pct = (el.scrollTop / (el.scrollHeight - el.clientHeight)) * 100;
+    document.getElementById('prog-fill').style.width = pct + '%';
+    document.getElementById('prog-label').textContent = Math.round(pct) + '%';
+  });
+
+  let answered = false;
+  function answer(el, correct) {
+    if (answered) return;
+    answered = true;
+    const fb = document.getElementById('qfeedback');
+    if (correct) {
+      el.classList.add('correct');
+      fb.textContent = '✓ Správne! pull_request s types [opened, synchronize] spustí workflow pri otvorení PR aj pri každom novom commite — presne to, čo potrebuješ pre automatický code review.';
+      fb.className = 'quiz-feedback show ok';
+    } else {
+      el.classList.add('wrong');
+      document.querySelectorAll('.quiz-option')[1].classList.add('correct');
+      fb.textContent = '✗ Nie celkom. push trigger beží aj bez PR, schedule je periodický a workflow_dispatch je manuálny. Pre code review na PR je správny pull_request trigger s types [opened, synchronize].';
+      fb.className = 'quiz-feedback show err';
+    }
+  }
+</script>
+</body>
+</html>
