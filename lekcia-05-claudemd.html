@@ -1,0 +1,794 @@
+<!DOCTYPE html>
+<html lang="sk">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Lekcia 05 — CLAUDE.md a perzistentný kontext</title>
+<link href="https://fonts.googleapis.com/css2?family=Space+Mono:ital,wght@0,400;0,700;1,400&family=Syne:wght@400;700;800&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #0a0c10;
+    --surface: #111318;
+    --surface2: #191c24;
+    --border: #1e2330;
+    --accent: #e8ff5a;
+    --accent2: #5affb8;
+    --accent3: #ff6b6b;
+    --text: #d4d8e8;
+    --text-dim: #5a6080;
+    --text-bright: #f0f4ff;
+    --glow: rgba(232,255,90,0.15);
+    --mono: 'Space Mono', monospace;
+    --sans: 'Syne', sans-serif;
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: var(--sans);
+    min-height: 100vh;
+    overflow-x: hidden;
+  }
+
+  body::before {
+    content: '';
+    position: fixed;
+    inset: 0;
+    background-image:
+      linear-gradient(rgba(232,255,90,0.03) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(232,255,90,0.03) 1px, transparent 1px);
+    background-size: 40px 40px;
+    pointer-events: none;
+    z-index: 0;
+  }
+
+  .topbar {
+    position: sticky;
+    top: 0;
+    z-index: 100;
+    background: rgba(10,12,16,0.92);
+    backdrop-filter: blur(12px);
+    border-bottom: 1px solid var(--border);
+    padding: 0 2rem;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    height: 56px;
+  }
+
+  .topbar-left { display: flex; align-items: center; gap: 1rem; }
+
+  .logo {
+    font-family: var(--mono);
+    font-size: 0.8rem;
+    color: var(--accent);
+    letter-spacing: 0.1em;
+    text-decoration: none;
+  }
+
+  .sep { color: var(--text-dim); }
+
+  .lesson-badge {
+    font-family: var(--mono);
+    font-size: 0.7rem;
+    color: var(--text-dim);
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    padding: 3px 10px;
+    border-radius: 2px;
+  }
+
+  .progress-wrap { display: flex; align-items: center; gap: 0.75rem; }
+  .progress-label { font-family: var(--mono); font-size: 0.65rem; color: var(--text-dim); }
+  .progress-bar { width: 120px; height: 3px; background: var(--border); border-radius: 2px; overflow: hidden; }
+  .progress-fill { height: 100%; background: var(--accent); width: 0%; transition: width 0.4s ease; box-shadow: 0 0 8px var(--accent); }
+
+  .container {
+    position: relative;
+    z-index: 1;
+    max-width: 860px;
+    margin: 0 auto;
+    padding: 3rem 2rem 6rem;
+  }
+
+  .hero { margin-bottom: 4rem; animation: fadeUp 0.7s ease both; }
+
+  .eyebrow {
+    font-family: var(--mono);
+    font-size: 0.7rem;
+    color: var(--accent);
+    letter-spacing: 0.2em;
+    text-transform: uppercase;
+    margin-bottom: 1rem;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+  }
+  .eyebrow::before { content: '>'; color: var(--accent); }
+
+  h1 {
+    font-family: var(--sans);
+    font-size: clamp(2.2rem, 5vw, 3.5rem);
+    font-weight: 800;
+    color: var(--text-bright);
+    line-height: 1.1;
+    letter-spacing: -0.02em;
+    margin-bottom: 1.5rem;
+  }
+  h1 em { color: var(--accent); font-style: normal; }
+
+  .hero-desc {
+    color: var(--text-dim);
+    line-height: 1.7;
+    max-width: 600px;
+    font-family: var(--mono);
+    font-size: 0.85rem;
+  }
+
+  .objectives {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-left: 3px solid var(--accent);
+    padding: 1.5rem 2rem;
+    margin-bottom: 3rem;
+    animation: fadeUp 0.7s 0.15s ease both;
+  }
+  .objectives h3 {
+    font-family: var(--mono);
+    font-size: 0.7rem;
+    color: var(--accent);
+    letter-spacing: 0.15em;
+    text-transform: uppercase;
+    margin-bottom: 1rem;
+  }
+  .obj-list { list-style: none; display: flex; flex-direction: column; gap: 0.6rem; }
+  .obj-list li {
+    font-size: 0.9rem;
+    color: var(--text);
+    display: flex;
+    align-items: flex-start;
+    gap: 0.75rem;
+    line-height: 1.5;
+  }
+  .obj-list li::before {
+    content: '✓';
+    color: var(--accent2);
+    font-family: var(--mono);
+    font-size: 0.8rem;
+    flex-shrink: 0;
+    margin-top: 2px;
+  }
+
+  .section { margin-bottom: 3rem; animation: fadeUp 0.7s ease both; }
+  .section:nth-child(3) { animation-delay: 0.2s; }
+  .section:nth-child(4) { animation-delay: 0.3s; }
+  .section:nth-child(5) { animation-delay: 0.4s; }
+  .section:nth-child(6) { animation-delay: 0.5s; }
+  .section:nth-child(7) { animation-delay: 0.6s; }
+
+  .section-header { display: flex; align-items: center; gap: 1rem; margin-bottom: 1.5rem; }
+  .section-num {
+    font-family: var(--mono);
+    font-size: 0.7rem;
+    color: var(--text-dim);
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    width: 32px;
+    height: 32px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+  }
+  h2 {
+    font-family: var(--sans);
+    font-size: 1.4rem;
+    font-weight: 800;
+    color: var(--text-bright);
+    letter-spacing: -0.01em;
+  }
+
+  p { font-size: 0.95rem; line-height: 1.8; color: var(--text); margin-bottom: 1rem; }
+  p strong { color: var(--text-bright); font-weight: 700; }
+
+  /* TERMINAL */
+  .terminal {
+    background: #060810;
+    border: 1px solid var(--border);
+    border-top: 2px solid var(--accent);
+    margin: 1.5rem 0;
+    font-family: var(--mono);
+    overflow: hidden;
+  }
+  .terminal-header {
+    background: var(--surface);
+    padding: 0.5rem 1rem;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    border-bottom: 1px solid var(--border);
+  }
+  .terminal-dot { width: 8px; height: 8px; border-radius: 50%; }
+  .terminal-dot.red { background: #ff5f57; }
+  .terminal-dot.yellow { background: #febc2e; }
+  .terminal-dot.green { background: #28c840; }
+  .terminal-title { font-size: 0.65rem; color: var(--text-dim); margin-left: auto; letter-spacing: 0.1em; }
+  .terminal-body { padding: 1.25rem 1.5rem; }
+  .terminal-line { display: flex; gap: 0.75rem; margin-bottom: 0.4rem; line-height: 1.6; font-size: 0.82rem; }
+  .prompt { color: var(--accent); flex-shrink: 0; }
+  .cmd { color: var(--text-bright); }
+  .out { color: var(--text-dim); }
+  .out-success { color: var(--accent2); }
+  .comment { color: var(--text-dim); font-style: italic; }
+
+  /* MARKDOWN FILE PREVIEW */
+  .md-file {
+    background: #060810;
+    border: 1px solid var(--border);
+    border-top: 2px solid var(--accent2);
+    margin: 1.5rem 0;
+    font-family: var(--mono);
+    overflow: hidden;
+  }
+  .md-header {
+    background: var(--surface);
+    padding: 0.5rem 1rem;
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    border-bottom: 1px solid var(--border);
+    font-size: 0.7rem;
+    color: var(--accent2);
+    letter-spacing: 0.05em;
+  }
+  .md-icon { font-size: 0.9rem; }
+  .md-body { padding: 1.5rem; line-height: 1.8; font-size: 0.82rem; }
+  .md-h1 { color: var(--accent); font-size: 1rem; margin-bottom: 0.75rem; }
+  .md-h2 { color: var(--accent2); font-size: 0.85rem; margin: 1.25rem 0 0.5rem; }
+  .md-h3 { color: #febc2e; font-size: 0.8rem; margin: 1rem 0 0.4rem; }
+  .md-p { color: var(--text-dim); margin-bottom: 0.5rem; }
+  .md-li { color: var(--text-dim); padding-left: 1rem; position: relative; margin-bottom: 0.2rem; }
+  .md-li::before { content: '-'; position: absolute; left: 0; color: var(--accent2); }
+  .md-code { color: var(--accent); background: rgba(232,255,90,0.06); padding: 0.1rem 0.3rem; }
+  .md-hr { border: none; border-top: 1px solid var(--border); margin: 1rem 0; }
+
+  /* HIERARCHY TREE */
+  .file-tree {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    padding: 1.5rem;
+    margin: 1.5rem 0;
+    font-family: var(--mono);
+    font-size: 0.8rem;
+    line-height: 2;
+  }
+  .tree-dir { color: var(--text-dim); }
+  .tree-file { color: var(--text); }
+  .tree-file.highlight { color: var(--accent); }
+  .tree-file.highlight2 { color: var(--accent2); }
+  .tree-desc { color: var(--text-dim); font-size: 0.7rem; margin-left: 0.5rem; }
+
+  /* SECTIONS TABS */
+  .tab-bar {
+    display: flex;
+    border: 1px solid var(--border);
+    overflow: hidden;
+    margin-bottom: 0;
+  }
+  .tab-btn {
+    font-family: var(--mono);
+    font-size: 0.68rem;
+    padding: 0.55rem 1rem;
+    cursor: pointer;
+    border: none;
+    background: var(--surface);
+    color: var(--text-dim);
+    letter-spacing: 0.05em;
+    border-right: 1px solid var(--border);
+    transition: background 0.2s, color 0.2s;
+    flex: 1;
+  }
+  .tab-btn:last-child { border-right: none; }
+  .tab-btn:hover { background: var(--surface2); color: var(--text); }
+  .tab-btn.active { background: var(--surface2); color: var(--accent2); border-bottom: 2px solid var(--accent2); }
+  .tab-panel { display: none; }
+  .tab-panel.active { display: block; }
+
+  /* CALLOUT */
+  .callout {
+    padding: 1rem 1.25rem;
+    margin: 1.5rem 0;
+    border-left: 3px solid;
+    line-height: 1.6;
+    font-family: var(--mono);
+  }
+  .callout-tip { background: rgba(90,255,184,0.06); border-color: var(--accent2); color: var(--accent2); }
+  .callout-warn { background: rgba(254,188,46,0.06); border-color: #febc2e; color: #febc2e; }
+  .callout-info { background: rgba(232,255,90,0.06); border-color: var(--accent); color: var(--accent); }
+  .callout-label { font-size: 0.65rem; letter-spacing: 0.15em; text-transform: uppercase; margin-bottom: 0.4rem; opacity: 0.8; }
+  .callout p { font-family: var(--mono); font-size: 0.82rem; margin: 0; color: inherit; }
+
+  /* QUIZ */
+  .quiz {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    padding: 2rem;
+    margin-top: 2rem;
+  }
+  .quiz-header { font-family: var(--mono); font-size: 0.65rem; color: var(--accent); letter-spacing: 0.2em; text-transform: uppercase; margin-bottom: 0.5rem; }
+  .quiz h3 { font-size: 1rem; color: var(--text-bright); font-weight: 700; margin-bottom: 1.5rem; line-height: 1.5; }
+  .quiz-options { display: flex; flex-direction: column; gap: 0.6rem; margin-bottom: 1rem; }
+  .quiz-option {
+    display: flex;
+    align-items: flex-start;
+    gap: 0.75rem;
+    padding: 0.9rem 1rem;
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    cursor: pointer;
+    transition: border-color 0.2s;
+    font-size: 0.88rem;
+    line-height: 1.5;
+  }
+  .quiz-option:hover { border-color: var(--accent); }
+  .quiz-option.correct { border-color: var(--accent2); background: rgba(90,255,184,0.06); color: var(--accent2); }
+  .quiz-option.wrong { border-color: var(--accent3); background: rgba(255,107,107,0.06); color: var(--accent3); }
+  .quiz-letter { font-family: var(--mono); font-size: 0.7rem; color: var(--text-dim); flex-shrink: 0; margin-top: 2px; }
+  .quiz-feedback { font-family: var(--mono); font-size: 0.8rem; padding: 0.75rem 1rem; display: none; line-height: 1.5; }
+  .quiz-feedback.show { display: block; }
+  .quiz-feedback.ok { color: var(--accent2); background: rgba(90,255,184,0.06); border-left: 3px solid var(--accent2); }
+  .quiz-feedback.err { color: var(--accent3); background: rgba(255,107,107,0.06); border-left: 3px solid var(--accent3); }
+
+  /* NAV */
+  .lesson-nav {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-top: 4rem;
+    padding-top: 2rem;
+    border-top: 1px solid var(--border);
+    gap: 1rem;
+  }
+  .nav-btn {
+    font-family: var(--mono);
+    font-size: 0.75rem;
+    padding: 0.7rem 1.4rem;
+    border: 1px solid var(--border);
+    background: var(--surface);
+    color: var(--text);
+    text-decoration: none;
+    letter-spacing: 0.05em;
+    transition: border-color 0.2s, color 0.2s;
+  }
+  .nav-btn:hover { border-color: var(--accent); color: var(--accent); }
+  .nav-btn.primary { border-color: var(--accent); color: var(--accent); background: rgba(232,255,90,0.06); }
+  .nav-btn.primary:hover { background: rgba(232,255,90,0.12); }
+
+  @keyframes fadeUp {
+    from { opacity: 0; transform: translateY(16px); }
+    to   { opacity: 1; transform: translateY(0); }
+  }
+
+  @media (max-width: 600px) {
+    .tab-btn { font-size: 0.6rem; padding: 0.5rem 0.5rem; }
+  }
+</style>
+</head>
+<body>
+
+<nav class="topbar">
+  <div class="topbar-left">
+    <a href="index.html" class="logo">claude_code</a>
+    <span class="sep">/</span>
+    <span class="lesson-badge">lekcia 05</span>
+  </div>
+  <div class="progress-wrap">
+    <span class="progress-label" id="prog-label">0%</span>
+    <div class="progress-bar"><div class="progress-fill" id="prog-fill"></div></div>
+  </div>
+</nav>
+
+<div class="container">
+
+  <!-- HERO -->
+  <div class="hero">
+    <div class="eyebrow">Claude Code Essentials &nbsp;·&nbsp; Lekcia 05</div>
+    <h1><em>CLAUDE.md</em> —<br>perzistentný kontext</h1>
+    <p class="hero-desc">
+      CLAUDE.md je súbor, ktorý agent číta automaticky pri každom spustení.
+      Je to tvoj spôsob, ako agentovi povedať: <em>kto sme, čo robíme a ako to robíme</em>.
+    </p>
+  </div>
+
+  <!-- OBJECTIVES -->
+  <div class="objectives">
+    <h3>// čo sa naučíš</h3>
+    <ul class="obj-list">
+      <li>Pochopiť, čo je CLAUDE.md a prečo ho každý projekt potrebuje</li>
+      <li>Vedieť, kde CLAUDE.md umiestniť — globálne, projektové, podpriečinkové</li>
+      <li>Napísať efektívny CLAUDE.md pre reálny projekt</li>
+      <li>Používať Rules súbory na jemnú kontrolu správania agenta</li>
+      <li>Rozoznať, čo do CLAUDE.md patrí a čo nie</li>
+    </ul>
+  </div>
+
+  <!-- SECTION 1: Čo je CLAUDE.md -->
+  <div class="section">
+    <div class="section-header">
+      <div class="section-num">01</div>
+      <h2>Čo je CLAUDE.md a prečo ho potrebuješ</h2>
+    </div>
+
+    <p>
+      Keď spustíš Claude Code v priečinku projektu, agent automaticky vyhľadá
+      a prečíta súbor <strong>CLAUDE.md</strong>. Tento súbor je <em>trvalá inštrukcia</em>
+      pre agenta — platí pre každú session, každé spustenie, každého člena tímu.
+    </p>
+
+    <p>
+      Bez CLAUDE.md musíš agentovi každú session vysvetľovať kontext projektu znova.
+      S CLAUDE.md agent hneď vie: aký je stack, aké sú konvencie, čo smie a čo nesmie.
+    </p>
+
+    <div class="callout callout-info">
+      <div class="callout-label">// kedy agent číta CLAUDE.md</div>
+      <p>Pri každom spustení <code>claude</code> v danom priečinku — automaticky, bez toho, aby si o to žiadal. Je to prvá vec, ktorú agent načíta pred akoukoľvek tvojou správou.</p>
+    </div>
+
+    <div class="file-tree">
+      <div class="tree-dir">môj-projekt/</div>
+      <div class="tree-file highlight">├── CLAUDE.md &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="tree-desc">← agent číta automaticky</span></div>
+      <div class="tree-file">├── src/</div>
+      <div class="tree-file highlight2">│ &nbsp;&nbsp;└── CLAUDE.md &nbsp;&nbsp;&nbsp;&nbsp;<span class="tree-desc">← pre src/ podpriečinok</span></div>
+      <div class="tree-file">├── tests/</div>
+      <div class="tree-file">├── package.json</div>
+      <div class="tree-file">└── .claude/</div>
+      <div class="tree-file highlight2">&nbsp;&nbsp;&nbsp;&nbsp;└── settings.json</div>
+    </div>
+  </div>
+
+  <!-- SECTION 2: Kde umiestniť -->
+  <div class="section">
+    <div class="section-header">
+      <div class="section-num">02</div>
+      <h2>Kde CLAUDE.md umiestniť</h2>
+    </div>
+
+    <p>
+      Claude Code načíta <strong>viacero CLAUDE.md súborov</strong> naraz — hierarchicky.
+      Každý súbor má iný rozsah platnosti.
+    </p>
+
+    <div class="tab-bar">
+      <button class="tab-btn active" onclick="switchTab('global')">Globálny</button>
+      <button class="tab-btn" onclick="switchTab('project')">Projektový</button>
+      <button class="tab-btn" onclick="switchTab('subdir')">Podpriečinok</button>
+    </div>
+
+    <div class="tab-panel active" id="tab-global">
+      <div class="terminal">
+        <div class="terminal-header">
+          <div class="terminal-dot red"></div>
+          <div class="terminal-dot yellow"></div>
+          <div class="terminal-dot green"></div>
+          <span class="terminal-title">~/.claude/CLAUDE.md</span>
+        </div>
+        <div class="terminal-body">
+          <div class="terminal-line"><span class="comment"># Platí pre VŠETKY projekty na tvojom stroji</span></div>
+          <div class="terminal-line"><span class="comment"># Ideálne pre osobné preferencie a globálne pravidlá</span></div>
+          <div class="terminal-line" style="margin-top:0.5rem"><span class="out">Umiestnenie: ~/.claude/CLAUDE.md</span></div>
+          <div class="terminal-line"><span class="out-success">Príklady obsahu:</span></div>
+          <div class="terminal-line"><span class="out">  - Preferovaný jazyk odpovedí (napr. slovenčina)</span></div>
+          <div class="terminal-line"><span class="out">  - Osobný štýl kódu</span></div>
+          <div class="terminal-line"><span class="out">  - Globálne zakázané operácie</span></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="tab-panel" id="tab-project">
+      <div class="terminal">
+        <div class="terminal-header">
+          <div class="terminal-dot red"></div>
+          <div class="terminal-dot yellow"></div>
+          <div class="terminal-dot green"></div>
+          <span class="terminal-title">./CLAUDE.md (koreň projektu)</span>
+        </div>
+        <div class="terminal-body">
+          <div class="terminal-line"><span class="comment"># Platí pre celý projekt — commitni do git</span></div>
+          <div class="terminal-line"><span class="comment"># Zdieľaný kontext pre celý tím</span></div>
+          <div class="terminal-line" style="margin-top:0.5rem"><span class="out">Umiestnenie: ./CLAUDE.md</span></div>
+          <div class="terminal-line"><span class="out-success">Príklady obsahu:</span></div>
+          <div class="terminal-line"><span class="out">  - Tech stack a architektúra projektu</span></div>
+          <div class="terminal-line"><span class="out">  - Konvencie pre kód a naming</span></div>
+          <div class="terminal-line"><span class="out">  - Testovacie príkazy a workflow</span></div>
+          <div class="terminal-line"><span class="out">  - Zakázané operácie pre daný projekt</span></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="tab-panel" id="tab-subdir">
+      <div class="terminal">
+        <div class="terminal-header">
+          <div class="terminal-dot red"></div>
+          <div class="terminal-dot yellow"></div>
+          <div class="terminal-dot green"></div>
+          <span class="terminal-title">./src/CLAUDE.md</span>
+        </div>
+        <div class="terminal-body">
+          <div class="terminal-line"><span class="comment"># Platí len keď agent pracuje v danom podpriečinku</span></div>
+          <div class="terminal-line"><span class="comment"># Špecifické pravidlá pre časť projektu</span></div>
+          <div class="terminal-line" style="margin-top:0.5rem"><span class="out">Príklady:</span></div>
+          <div class="terminal-line"><span class="out">  - ./src/CLAUDE.md — pravidlá pre frontend kód</span></div>
+          <div class="terminal-line"><span class="out">  - ./api/CLAUDE.md — pravidlá pre backend / REST</span></div>
+          <div class="terminal-line"><span class="out">  - ./tests/CLAUDE.md — pravidlá pre písanie testov</span></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="callout callout-tip">
+      <div class="callout-label">// poradie načítania</div>
+      <p>Agent načítava: globálny → projektový → podpriečinkový. Neskoršie súbory <strong>dopĺňajú</strong> (nie prepísujú) predchádzajúce. Môžeš mať teda všeobecné pravidlá globálne a špecifické lokálne.</p>
+    </div>
+  </div>
+
+  <!-- SECTION 3: Čo písať do CLAUDE.md -->
+  <div class="section">
+    <div class="section-header">
+      <div class="section-num">03</div>
+      <h2>Čo písať do CLAUDE.md</h2>
+    </div>
+
+    <p>
+      CLAUDE.md je <strong>markdown súbor</strong> — píš ho ako inštrukcie pre nového
+      kolegu, ktorý nepozná projekt. Agent ho číta doslova.
+    </p>
+
+    <div class="md-file">
+      <div class="md-header">
+        <span class="md-icon">📄</span>
+        CLAUDE.md — príklad pre webový projekt
+      </div>
+      <div class="md-body">
+        <div class="md-h1"># Claude Code — Projekt: E-shop API</div>
+
+        <div class="md-h2">## Tech Stack</div>
+        <div class="md-li">Backend: Node.js 22 + Express + TypeScript</div>
+        <div class="md-li">Databáza: PostgreSQL 16 + Prisma ORM</div>
+        <div class="md-li">Autentifikácia: JWT + bcrypt</div>
+        <div class="md-li">Testy: Vitest + Supertest</div>
+
+        <hr class="md-hr">
+
+        <div class="md-h2">## Príkazy</div>
+        <div class="md-h3">### Spustenie</div>
+        <div class="md-li"><span class="md-code">npm run dev</span> — development server (port 3000)</div>
+        <div class="md-li"><span class="md-code">npm run build</span> — produkčný build</div>
+        <div class="md-h3">### Testy</div>
+        <div class="md-li"><span class="md-code">npm test</span> — všetky testy</div>
+        <div class="md-li"><span class="md-code">npm run test:watch</span> — watch mód</div>
+
+        <hr class="md-hr">
+
+        <div class="md-h2">## Konvencie kódu</div>
+        <div class="md-li">Funkcie: camelCase, súbory: kebab-case</div>
+        <div class="md-li">Každý endpoint musí mať zodpovedajúci test</div>
+        <div class="md-li">Žiadne <span class="md-code">any</span> typy v TypeScript</div>
+        <div class="md-li">Chybové hlášky vždy v angličtine</div>
+
+        <hr class="md-hr">
+
+        <div class="md-h2">## Zakázané operácie</div>
+        <div class="md-li">Nikdy nespúšťaj <span class="md-code">DROP TABLE</span> bez potvrdenia</div>
+        <div class="md-li">Nemazaj súbory v <span class="md-code">/prisma/migrations</span></div>
+        <div class="md-li">Neupravuj <span class="md-code">.env.production</span></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- SECTION 4: Čo DO CLAUDE.md NEPATRÍ -->
+  <div class="section">
+    <div class="section-header">
+      <div class="section-num">04</div>
+      <h2>Čo do CLAUDE.md nepatrí</h2>
+    </div>
+
+    <p>
+      CLAUDE.md nie je miesto pre všetko. Príliš dlhý alebo zle štruktúrovaný
+      CLAUDE.md môže agenta skôr zmiasť ako pomôcť. Drž ho stručný a relevantný.
+    </p>
+
+    <div class="terminal">
+      <div class="terminal-header">
+        <div class="terminal-dot red"></div>
+        <div class="terminal-dot yellow"></div>
+        <div class="terminal-dot green"></div>
+        <span class="terminal-title">čo kam patrí</span>
+      </div>
+      <div class="terminal-body">
+        <div class="terminal-line"><span class="out-success">✓ CLAUDE.md:</span></div>
+        <div class="terminal-line"><span class="out">  Architektúra a tech stack projektu</span></div>
+        <div class="terminal-line"><span class="out">  Príkazy na spustenie, build, testy</span></div>
+        <div class="terminal-line"><span class="out">  Konvencie a kódovacie štandardy tímu</span></div>
+        <div class="terminal-line"><span class="out">  Zakázané operácie a bezpečnostné pravidlá</span></div>
+        <div class="terminal-line"><span class="out">  Štruktúra priečinkov a kde čo nájsť</span></div>
+        <div class="terminal-line" style="margin-top:0.75rem"><span class="out-warn">✗ Nepatrí do CLAUDE.md:</span></div>
+        <div class="terminal-line"><span class="out">  API kľúče a secrets (použiť .env alebo settings.local)</span></div>
+        <div class="terminal-line"><span class="out">  Celé bloky kódu (agent si ich prečíta sám)</span></div>
+        <div class="terminal-line"><span class="out">  Dokumentácia každej funkcie (to je README.md)</span></div>
+        <div class="terminal-line"><span class="out">  História projektu a changelog</span></div>
+        <div class="terminal-line"><span class="out">  Tutoriály a vysvetlenia pre ľudí</span></div>
+      </div>
+    </div>
+
+    <div class="callout callout-warn">
+      <div class="callout-label">// zlaté pravidlo</div>
+      <p>CLAUDE.md by mal mať <strong>menej ako 500 riadkov</strong>. Ak je dlhší, rozdeľ ho do podpriečinkových CLAUDE.md súborov podľa oblasti (frontend, backend, testy).</p>
+    </div>
+  </div>
+
+  <!-- SECTION 5: Rules súbory -->
+  <div class="section">
+    <div class="section-header">
+      <div class="section-num">05</div>
+      <h2>Rules súbory — jemná kontrola správania</h2>
+    </div>
+
+    <p>
+      Okrem CLAUDE.md môžeš vytvoriť špecializované <strong>rules súbory</strong>
+      v priečinku <code style="color:var(--accent)">.claude/rules/</code>.
+      Tieto súbory agent načíta podľa kontextu — napríklad len pri práci s testami.
+    </p>
+
+    <div class="file-tree">
+      <div class="tree-dir">.claude/</div>
+      <div class="tree-file">├── settings.json</div>
+      <div class="tree-dir">└── rules/</div>
+      <div class="tree-file highlight">&nbsp;&nbsp;&nbsp;&nbsp;├── testing.md &nbsp;&nbsp;&nbsp;<span class="tree-desc">← pravidlá pre písanie testov</span></div>
+      <div class="tree-file highlight">&nbsp;&nbsp;&nbsp;&nbsp;├── security.md &nbsp;<span class="tree-desc">← bezpečnostné pravidlá</span></div>
+      <div class="tree-file highlight">&nbsp;&nbsp;&nbsp;&nbsp;└── api.md &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="tree-desc">← pravidlá pre REST API</span></div>
+    </div>
+
+    <div class="md-file">
+      <div class="md-header">
+        <span class="md-icon">📄</span>
+        .claude/rules/testing.md
+      </div>
+      <div class="md-body">
+        <div class="md-h1"># Pravidlá pre písanie testov</div>
+        <div class="md-p">Tieto pravidlá platia vždy keď píšeš alebo upravuješ testy.</div>
+
+        <div class="md-h2">## Povinné pravidlá</div>
+        <div class="md-li">Každý test musí mať describe blok s názvom modulu</div>
+        <div class="md-li">Používaj <span class="md-code">it()</span> nie <span class="md-code">test()</span> pre konzistentnosť</div>
+        <div class="md-li">Mock len externé závislosti (HTTP, databáza)</div>
+        <div class="md-li">Každý test musí byť izolovaný — žiadne zdieľané state</div>
+
+        <div class="md-h2">## Štruktúra testu</div>
+        <div class="md-li">Arrange → Act → Assert pattern</div>
+        <div class="md-li">Názov testu: "should [expected behavior] when [condition]"</div>
+      </div>
+    </div>
+
+    <div class="callout callout-tip">
+      <div class="callout-label">// ako agent používa rules</div>
+      <p>Rules súbory môžeš referencovať aj manuálne: <code style="color:var(--accent)">Pozri .claude/rules/security.md pred akoukoľvek zmenou autentifikácie.</code> Agent ich aplikuje presne podľa inštrukcií.</p>
+    </div>
+  </div>
+
+  <!-- SECTION 6: Vytvorenie CLAUDE.md -->
+  <div class="section">
+    <div class="section-header">
+      <div class="section-num">06</div>
+      <h2>Vytvorenie CLAUDE.md — prakticky</h2>
+    </div>
+
+    <p>Claude Code ti vie pomôcť vygenerovať CLAUDE.md pre existujúci projekt:</p>
+
+    <div class="terminal">
+      <div class="terminal-header">
+        <div class="terminal-dot red"></div>
+        <div class="terminal-dot yellow"></div>
+        <div class="terminal-dot green"></div>
+        <span class="terminal-title">generovanie CLAUDE.md</span>
+      </div>
+      <div class="terminal-body">
+        <div class="terminal-line"><span class="comment"># Požiadaj agenta, nech sám analyzuje projekt</span></div>
+        <div class="terminal-line"><span class="prompt">&gt;</span><span class="cmd"> Analyzuj tento projekt a vytvor CLAUDE.md s konvenciami,</span></div>
+        <div class="terminal-line"><span class="prompt">&nbsp;</span><span class="cmd"> príkazmi a pravidlami, ktoré by mal agent poznať.</span></div>
+        <div class="terminal-line" style="margin-top:0.5rem"><span class="out">Analyzujem štruktúru projektu...</span></div>
+        <div class="terminal-line"><span class="out">Čítam package.json, tsconfig.json, .eslintrc...</span></div>
+        <div class="terminal-line"><span class="out-success">✓ CLAUDE.md vytvorený (87 riadkov)</span></div>
+
+        <div class="terminal-line" style="margin-top:0.75rem"><span class="comment"># Alebo spusti automatické skenovanie</span></div>
+        <div class="terminal-line"><span class="prompt">$</span><span class="cmd">claude --init</span></div>
+        <div class="terminal-line"><span class="out-success">✓ CLAUDE.md initialized for this project</span></div>
+      </div>
+    </div>
+
+    <div class="callout callout-info">
+      <div class="callout-label">// živý dokument</div>
+      <p>CLAUDE.md nie je jednorazový — aktualizuj ho pri každej väčšej zmene projektu. Pridaj ho do code review procesu rovnako ako ostatné konfiguračné súbory.</p>
+    </div>
+  </div>
+
+  <!-- QUIZ -->
+  <div class="section">
+    <div class="quiz">
+      <div class="quiz-header">// rýchly test</div>
+      <h3>Pracuješ na projekte s frontendom a backendom. Chceš mať rôzne pravidlá pre každú časť. Ako to najlepšie zorganizuješ?</h3>
+      <div class="quiz-options">
+        <div class="quiz-option" onclick="answer(this, false)">
+          <span class="quiz-letter">A</span>
+          <span>Jeden veľký CLAUDE.md v koreni projektu so všetkým</span>
+        </div>
+        <div class="quiz-option" onclick="answer(this, true)">
+          <span class="quiz-letter">B</span>
+          <span>CLAUDE.md v koreni + samostatné CLAUDE.md v /frontend a /backend priečinkoch</span>
+        </div>
+        <div class="quiz-option" onclick="answer(this, false)">
+          <span class="quiz-letter">C</span>
+          <span>Dva samostatné projekty — jeden pre frontend, jeden pre backend</span>
+        </div>
+        <div class="quiz-option" onclick="answer(this, false)">
+          <span class="quiz-letter">D</span>
+          <span>CLAUDE.md nie je vhodný pre väčšie projekty</span>
+        </div>
+      </div>
+      <div class="quiz-feedback" id="qfeedback"></div>
+    </div>
+  </div>
+
+  <!-- SUMMARY -->
+  <div class="section">
+    <div class="callout callout-info">
+      <div class="callout-label">// zhrnutie lekcie 05</div>
+      <p>
+        CLAUDE.md je základ každého projektu s Claude Code. Píš do neho kontext, príkazy, konvencie a zakázané operácie. Hierarchia globálny → projektový → podpriečinkový ti dáva presnosť bez duplicity. Drž ho stručný — agent ho číta pri každom spustení.
+      </p>
+    </div>
+  </div>
+
+  <!-- NAV -->
+  <div class="lesson-nav">
+    <a href="lekcia-04-nastavenia.html" class="nav-btn">← Lekcia 04 — Nastavenia</a>
+    <a href="index.html" class="nav-btn primary">Späť na obsah kurzu →</a>
+  </div>
+
+</div>
+
+<script>
+  window.addEventListener('scroll', () => {
+    const el = document.documentElement;
+    const pct = (el.scrollTop / (el.scrollHeight - el.clientHeight)) * 100;
+    document.getElementById('prog-fill').style.width = pct + '%';
+    document.getElementById('prog-label').textContent = Math.round(pct) + '%';
+  });
+
+  function switchTab(id) {
+    document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+    document.querySelectorAll('.tab-panel').forEach(p => p.classList.remove('active'));
+    event.target.classList.add('active');
+    document.getElementById('tab-' + id).classList.add('active');
+  }
+
+  let answered = false;
+  function answer(el, correct) {
+    if (answered) return;
+    answered = true;
+    const fb = document.getElementById('qfeedback');
+    if (correct) {
+      el.classList.add('correct');
+      fb.textContent = '✓ Správne! Hierarchia CLAUDE.md súborov je na toto ideálna — koreňový CLAUDE.md obsahuje spoločné pravidlá, podpriečinkové CLAUDE.md ich dopĺňajú pre konkrétne časti projektu.';
+      fb.className = 'quiz-feedback show ok';
+    } else {
+      el.classList.add('wrong');
+      document.querySelectorAll('.quiz-option')[1].classList.add('correct');
+      fb.textContent = '✗ Nie celkom. Jeden obrovský CLAUDE.md je ťažko udržateľný. Správne riešenie je hierarchia — koreňový pre zdieľané pravidlá a podpriečinkové CLAUDE.md pre špecifické časti.';
+      fb.className = 'quiz-feedback show err';
+    }
+  }
+</script>
+</body>
+</html>
